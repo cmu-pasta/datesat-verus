@@ -20,16 +20,14 @@ verus! {
             self.2
         }
 
-        spec fn leq(self, other: Self) -> bool {
-            self.year() < other.year() ||
-            (self.year() == other.year() && self.month() < other.month()) ||
-            (self.year() == other.year() && self.month() == other.month() && self.day() <= other.day())
-        }
-
         spec fn lt(self, other: Self) -> bool {
             self.year() < other.year() ||
             (self.year() == other.year() && self.month() < other.month()) ||
             (self.year() == other.year() && self.month() == other.month() && self.day() < other.day())
+        }
+
+        spec fn leq(self, other: Self) -> bool {
+            self.lt(other) || self == other
         }
 
         spec fn is_valid(self) -> bool {
@@ -58,11 +56,39 @@ verus! {
         EPOCH.is_valid();
     }
 
-    fn check_ord() {
-        assert(forall|d1: Date, d2: Date| Date::lt(d1, d2) ==> Date::leq(d1, d2));
-        assert(forall|d1: Date, d2: Date| Date::lt(d1, d2) ==> d1 != d2);
-        assert(forall|d1: Date, d2: Date| Date::leq(d1, d2) && d1 != d2 ==> Date::lt(d1, d2));
-    }
+    proof fn date_leq_is_reflexive(d: Date)
+        ensures d.leq(d) {}
+
+    proof fn date_leq_is_transitive(d1: Date, d2: Date, d3: Date)
+        requires d1.leq(d2) && d2.leq(d3),
+        ensures d1.leq(d3) {}
+
+    proof fn date_leq_is_antisymmetric(d1: Date, d2: Date)
+        requires d1.leq(d2) && d2.leq(d1),
+        ensures d1 == d2 {}
+
+    proof fn date_lt_is_irreflexive(d: Date)
+        ensures !d.lt(d) {}
+
+    proof fn date_lt_is_asymmetric(d1: Date, d2: Date)
+        requires d1.lt(d2),
+        ensures !d2.lt(d1) {}
+
+    proof fn date_lt_is_transitive(d1: Date, d2: Date, d3: Date)
+        requires d1.lt(d2) && d2.lt(d3),
+        ensures d1.lt(d3) {}
+
+    proof fn date_lt_implies_leq(d1: Date, d2: Date)
+        requires d1.lt(d2),
+        ensures d1.leq(d2) {}
+
+    proof fn date_lt_implies_neq(d1: Date, d2: Date)
+        requires d1.lt(d2),
+        ensures d1 != d2 {}
+
+    proof fn date_leq_neq_implies_lt(d1: Date, d2: Date)
+        requires d1.leq(d2) && d1 != d2,
+        ensures d1.lt(d2) {}
 
     struct Period(int, int, int);
 
@@ -221,7 +247,6 @@ verus! {
             self.add_months(period.years() * 12 + period.months()).add_days(period.days())
         }
 
-        // Theorem of Well-Formedness
         proof fn add_period_is_valid(self, period: Period)
             requires self.is_valid(),
             ensures self.add_period(period).is_valid()
@@ -231,10 +256,22 @@ verus! {
             let d_ = self.add_months(months_to_add);
             d_.add_days_is_valid(period.days());
         }
+
+        // Monotonicity of Date-Period Addition
+        // proof fn add_period_is_monotonic(d1: Date, d2: Date, p: Period)
+        //     requires d1.lt(d2),
+        //     ensures d1.add_period(p).leq(d2.add_period(p))
+        // {
+        //
+        // }
     }
 
     fn main() {
-        check_ord();
+        // Theorem 1: Well-formedness
+        assert forall|d: Date, p: Period| #![auto]
+            d.is_valid() implies d.add_period(p).is_valid() by { d.add_period_is_valid(p); }
+
+
     }
 
 } // verus!
