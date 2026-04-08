@@ -141,13 +141,6 @@ verus! {
             Date(y_, m_, d_)
         }
 
-        proof fn add_months_is_valid(self, n: int)
-            requires self.is_valid(),
-            ensures self.add_months(n).is_valid()
-        {
-            // QED
-        }
-
         spec fn add_days(self, n: int) -> Date
             recommends self.is_valid(),
             decreases (n < 0) as nat, abs(n) // see note for ADD-DAYS-UNDER-2
@@ -186,90 +179,97 @@ verus! {
 
         }
 
-        proof fn add_days_positive_is_valid(self, n: int)
-            requires self.is_valid() && n >= 0,
-            ensures self.add_days(n).is_valid(),
-            decreases n
-        {
-            let Date(y, m, d) = self;
-            if 1 <= d + n <= dim(y, m) {
-                // Base case: ADD-DAYS rule; trivially valid
-            } else {
-                // ADD-DAYS-OVER rule
-                assert(d + n > dim(y, m));
-                let n_ = n - (dim(y, m) - d) - 1;
-                Date(y, m, 1).add_months(1).add_days_positive_is_valid(n_);
-            }
-        }
-
-        proof fn add_days_negative_is_valid(self, n: int)
-            requires self.is_valid() && n < 0,
-            ensures self.add_days(n).is_valid(),
-            decreases abs(n)
-        {
-            let Date(y, m, d) = self;
-            if 1 <= d + n {
-                // Base case: ADD-DAYS rule
-                assert(d + n <= dim(y, m)); // since self.is_valid() && n < 0
-            } else if d > 1 {
-                // ADD-DAYS-UNDER1 rule
-                assert(d <= dim(y, m));
-                assert(d + n <= 0);
-                Date(y, m, 1).add_days_negative_is_valid(d - 1 + n);
-            } else {
-                // ADD-DAYS-UNDER2 rule
-                assert(d == 1);
-                assert(d <= dim(y, m));
-                let Date(y_, m_, _) = self.add_months(-1);
-                let n_ = n + dim(y_, m_);
-                // Split into positive and negative cases when recursing
-                if n_ >= 0 {
-                    Date(y_, m_, 1).add_days_positive_is_valid(n_)
-                } else {
-                    Date(y_, m_, 1).add_days_negative_is_valid(n_)
-                }
-            }
-        }
-
-        proof fn add_days_is_valid(self, n: int)
-            requires self.is_valid(),
-            ensures self.add_days(n).is_valid()
-        {
-            if n < 0 {
-                self.add_days_negative_is_valid(n);
-            } else {
-                self.add_days_positive_is_valid(n);
-            }
-        }
-
         spec fn add_period(self, period: Period) -> Date
         {
             self.add_months(period.years() * 12 + period.months()).add_days(period.days())
         }
-
-        proof fn add_period_is_valid(self, period: Period)
-            requires self.is_valid(),
-            ensures self.add_period(period).is_valid()
-        {
-            let months_to_add = period.years() * 12 + period.months();
-            self.add_months_is_valid(months_to_add);
-            let d_ = self.add_months(months_to_add);
-            d_.add_days_is_valid(period.days());
-        }
-
-        // Monotonicity of Date-Period Addition
-        // proof fn add_period_is_monotonic(d1: Date, d2: Date, p: Period)
-        //     requires d1.lt(d2),
-        //     ensures d1.add_period(p).leq(d2.add_period(p))
-        // {
-        //
-        // }
     }
+
+    proof fn date_add_months_preserves_validity(date: Date, n: int)
+        requires date.is_valid(),
+        ensures date.add_months(n).is_valid()
+    {
+        // QED
+    }
+
+    proof fn date_add_days_pos_preserves_validity(date: Date, n: int)
+        requires date.is_valid() && n >= 0,
+        ensures date.add_days(n).is_valid(),
+        decreases n
+    {
+        let Date(y, m, d) = date;
+        if 1 <= d + n <= dim(y, m) {
+            // Base case: ADD-DAYS rule; trivially valid
+        } else {
+            // ADD-DAYS-OVER rule
+            assert(d + n > dim(y, m));
+            let n_ = n - (dim(y, m) - d) - 1;
+            date_add_days_pos_preserves_validity(Date(y, m, 1).add_months(1), n_);
+        }
+    }
+
+    proof fn date_add_days_neg_preserves_validity(date: Date, n: int)
+        requires date.is_valid() && n < 0,
+        ensures date.add_days(n).is_valid(),
+        decreases abs(n)
+    {
+        let Date(y, m, d) = date;
+        if 1 <= d + n {
+            // Base case: ADD-DAYS rule
+            assert(d + n <= dim(y, m)); // since date.is_valid() && n < 0
+        } else if d > 1 {
+            // ADD-DAYS-UNDER1 rule
+            assert(d <= dim(y, m));
+            assert(d + n <= 0);
+            date_add_days_neg_preserves_validity(Date(y, m, 1), d - 1 + n);
+        } else {
+            // ADD-DAYS-UNDER2 rule
+            assert(d == 1);
+            assert(d <= dim(y, m));
+            let Date(y_, m_, _) = date.add_months(-1);
+            let n_ = n + dim(y_, m_);
+            // Split into positive and negative cases when recursing
+            if n_ >= 0 {
+                date_add_days_pos_preserves_validity(Date(y_, m_, 1), n_)
+            } else {
+                date_add_days_neg_preserves_validity(Date(y_, m_, 1), n_)
+            }
+        }
+    }
+
+    proof fn date_add_days_preserves_validity(date: Date, n: int)
+        requires date.is_valid(),
+        ensures date.add_days(n).is_valid()
+    {
+        if n < 0 {
+            date_add_days_neg_preserves_validity(date, n);
+        } else {
+            date_add_days_pos_preserves_validity(date, n);
+        }
+    }
+
+    proof fn date_add_period_preserves_validity(date: Date, period: Period)
+        requires date.is_valid(),
+        ensures date.add_period(period).is_valid()
+    {
+        let months_to_add = period.years() * 12 + period.months();
+        date_add_months_preserves_validity(date, months_to_add);
+        let d_ = date.add_months(months_to_add);
+        date_add_days_preserves_validity(d_, period.days());
+    }
+
+    // Monotonicity of Date-Period Addition
+    // proof fn date_add_period_is_monotonic(d1: Date, d2: Date, p: Period)
+    //     requires d1.lt(d2),
+    //     ensures d1.add_period(p).leq(d2.add_period(p))
+    // {
+    //
+    // }
 
     fn main() {
         // Theorem 1: Well-formedness
         assert forall|d: Date, p: Period| #![auto]
-            d.is_valid() implies d.add_period(p).is_valid() by { d.add_period_is_valid(p); }
+            d.is_valid() implies d.add_period(p).is_valid() by { date_add_period_preserves_validity(d, p); }
 
 
     }
