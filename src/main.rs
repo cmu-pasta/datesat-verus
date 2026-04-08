@@ -126,11 +126,13 @@ verus! {
     proof fn period_scale_identity(p: Period)
         ensures p.scale(1) == p {}
 
-    // proof fn period_scale_commutative(p: Period, f1: int, f2: int) by (nonlinear_arith)
-    //     ensures p.scale(f1).scale(f2) == p.scale(f2).scale(f1) {}
-    //
-    // proof fn period_scale_associative(p: Period, f1: int, f2: int) by (nonlinear_arith)
-    //     ensures p.scale(f1).scale(f2) == p.scale(f1*f2) {}
+    #[cfg(slow_proofs)]
+    proof fn period_scale_commutative(p: Period, f1: int, f2: int) by (nonlinear_arith)
+        ensures p.scale(f1).scale(f2) == p.scale(f2).scale(f1) {}
+
+    #[cfg(slow_proofs)]
+    proof fn period_scale_associative(p: Period, f1: int, f2: int) by (nonlinear_arith)
+        ensures p.scale(f1).scale(f2) == p.scale(f1*f2) {}
 
     impl Date {
         spec fn add_months(self, n: int) -> Date {
