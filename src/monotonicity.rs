@@ -20,9 +20,13 @@ verus! {
     }
 
     pub proof fn add_months_is_monotonic(d1: Date, d2: Date, n: int)
-        requires d1.is_valid() && d2.is_valid() && d1.lt(d2),
+        requires d1.is_valid() && d2.is_valid() && d1.leq(d2),
         ensures d1.add_months(n).leq(d2.add_months(n))
     {
+        if d1 == d2 {
+            date_leq_is_reflexive(d1.add_months(n));
+            return;
+        }
         let Date(y1, m1, day1) = d1;
         let Date(y2, m2, day2) = d2;
         let mi1 = m1 - 1 + n;
@@ -412,7 +416,7 @@ verus! {
 
     // Monotonicity of Date-Period Addition
     pub proof fn date_add_period_is_monotonic(d1: Date, d2: Date, p: Period)
-        requires d1.is_valid() && d2.is_valid() && d1.lt(d2),
+        requires d1.is_valid() && d2.is_valid() && d1.leq(d2),
         ensures d1.add_period(p).leq(d2.add_period(p))
     {
         let m = p.years() * 12 + p.months();

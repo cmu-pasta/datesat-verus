@@ -269,7 +269,7 @@ verus! {
 
         // Theorem 2: Monotonicity of Date-Period Addition
         assert forall|d1: Date, d2: Date, p: Period| #![auto]
-            d1.is_valid() && d2.is_valid() && d1.lt(d2) implies
+            d1.is_valid() && d2.is_valid() && d1.leq(d2) implies
                 d1.add_period(p).leq(d2.add_period(p)) by { date_add_period_is_monotonic(d1, d2, p); }
 
     }
