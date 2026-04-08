@@ -1,51 +1,54 @@
 use vstd::prelude::*;
 use vstd::math::*;
 
+mod monotonicity;
+use monotonicity::*;
+
 verus! {
 
-    struct Date(int, int, int);
+    pub struct Date(pub int, pub int, pub int);
 
     spec const EPOCH : Date = Date(2000, 3, 1);
 
     impl Date {
-        spec fn year(&self) -> int {
+        pub open spec fn year(&self) -> int {
             self.0
         }
 
-        spec fn month(&self) -> int {
+        pub open spec fn month(&self) -> int {
             self.1
         }
 
-        spec fn day(&self) -> int {
+        pub open spec fn day(&self) -> int {
             self.2
         }
 
-        spec fn lt(self, other: Self) -> bool {
+        pub open spec fn lt(self, other: Self) -> bool {
             self.year() < other.year() ||
             (self.year() == other.year() && self.month() < other.month()) ||
             (self.year() == other.year() && self.month() == other.month() && self.day() < other.day())
         }
 
-        spec fn leq(self, other: Self) -> bool {
+        pub open spec fn leq(self, other: Self) -> bool {
             self.lt(other) || self == other
         }
 
-        spec fn is_valid(self) -> bool {
+        pub open spec fn is_valid(self) -> bool {
             1 <= self.month() <= 12 && 1 <= self.day() <= dim(self.year(), self.month())
         }
 
     }
 
-    spec fn leap(year: int) -> bool {
+    pub open spec fn leap(year: int) -> bool {
         year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
     }
 
-    spec fn dim(year: int, month: int) -> int {
+    pub open spec fn dim(year: int, month: int) -> int {
         let calendar = [31, if leap(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
         calendar[month - 1]
     }
 
-    proof fn dim_is_bounded(year: int, month: int)
+    pub proof fn dim_is_bounded(year: int, month: int)
         requires 1 <= month <= 12,
         ensures 28 <= dim(year, month) <= 31
     {
@@ -56,10 +59,10 @@ verus! {
         EPOCH.is_valid();
     }
 
-    proof fn date_leq_is_reflexive(d: Date)
+    pub proof fn date_leq_is_reflexive(d: Date)
         ensures d.leq(d) {}
 
-    proof fn date_leq_is_transitive(d1: Date, d2: Date, d3: Date)
+    pub proof fn date_leq_is_transitive(d1: Date, d2: Date, d3: Date)
         requires d1.leq(d2) && d2.leq(d3),
         ensures d1.leq(d3) {}
 
@@ -78,7 +81,7 @@ verus! {
         requires d1.lt(d2) && d2.lt(d3),
         ensures d1.lt(d3) {}
 
-    proof fn date_lt_implies_leq(d1: Date, d2: Date)
+    pub proof fn date_lt_implies_leq(d1: Date, d2: Date)
         requires d1.lt(d2),
         ensures d1.leq(d2) {}
 
@@ -90,17 +93,17 @@ verus! {
         requires d1.leq(d2) && d1 != d2,
         ensures d1.lt(d2) {}
 
-    struct Period(int, int, int);
+    pub struct Period(pub int, pub int, pub int);
 
     impl Period {
-        spec fn years(&self) -> int {
+        pub open spec fn years(&self) -> int {
             self.0
         }
 
-        spec fn months(&self) -> int {
+        pub open spec fn months(&self) -> int {
             self.1
         }
-        spec fn days(&self) -> int {
+        pub open spec fn days(&self) -> int {
             self.2
         }
 
@@ -126,16 +129,14 @@ verus! {
     proof fn period_scale_identity(p: Period)
         ensures p.scale(1) == p {}
 
-    #[cfg(slow_proofs)]
     proof fn period_scale_commutative(p: Period, f1: int, f2: int) by (nonlinear_arith)
         ensures p.scale(f1).scale(f2) == p.scale(f2).scale(f1) {}
 
-    #[cfg(slow_proofs)]
     proof fn period_scale_associative(p: Period, f1: int, f2: int) by (nonlinear_arith)
         ensures p.scale(f1).scale(f2) == p.scale(f1*f2) {}
 
     impl Date {
-        spec fn add_months(self, n: int) -> Date {
+        pub open spec fn add_months(self, n: int) -> Date {
             let Date(y, m, d) = self;
             let y_ = y + (m - 1 + n) / 12;
             let m_ = 1 + ((m - 1 + n) % 12);
@@ -143,7 +144,7 @@ verus! {
             Date(y_, m_, d_)
         }
 
-        spec fn add_days(self, n: int) -> Date
+        pub open spec fn add_days(self, n: int) -> Date
             recommends self.is_valid(),
             decreases (n < 0) as nat, abs(n) // see note for ADD-DAYS-UNDER-2
         {
@@ -181,13 +182,13 @@ verus! {
 
         }
 
-        spec fn add_period(self, period: Period) -> Date
+        pub open spec fn add_period(self, period: Period) -> Date
         {
             self.add_months(period.years() * 12 + period.months()).add_days(period.days())
         }
     }
 
-    proof fn date_add_months_preserves_validity(date: Date, n: int)
+    pub proof fn date_add_months_preserves_validity(date: Date, n: int)
         requires date.is_valid(),
         ensures date.add_months(n).is_valid()
     {
@@ -239,7 +240,7 @@ verus! {
         }
     }
 
-    proof fn date_add_days_preserves_validity(date: Date, n: int)
+    pub proof fn date_add_days_preserves_validity(date: Date, n: int)
         requires date.is_valid(),
         ensures date.add_days(n).is_valid()
     {
@@ -260,19 +261,16 @@ verus! {
         date_add_days_preserves_validity(d_, period.days());
     }
 
-    // Monotonicity of Date-Period Addition
-    // proof fn date_add_period_is_monotonic(d1: Date, d2: Date, p: Period)
-    //     requires d1.lt(d2),
-    //     ensures d1.add_period(p).leq(d2.add_period(p))
-    // {
-    //
-    // }
 
     fn main() {
         // Theorem 1: Well-formedness
         assert forall|d: Date, p: Period| #![auto]
             d.is_valid() implies d.add_period(p).is_valid() by { date_add_period_preserves_validity(d, p); }
 
+        // Theorem 2: Monotonicity of Date-Period Addition
+        assert forall|d1: Date, d2: Date, p: Period| #![auto]
+            d1.is_valid() && d2.is_valid() && d1.lt(d2) implies
+                d1.add_period(p).leq(d2.add_period(p)) by { date_add_period_is_monotonic(d1, d2, p); }
 
     }
 
