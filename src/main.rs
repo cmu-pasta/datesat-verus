@@ -4,11 +4,14 @@ use vstd::math::*;
 mod monotonicity;
 use monotonicity::*;
 
+mod epoch_delta;
+use epoch_delta::*;
+
 verus! {
 
     pub struct Date(pub int, pub int, pub int);
 
-    spec const EPOCH : Date = Date(2000, 3, 1);
+    pub spec const EPOCH : Date = Date(2000, 3, 1);
 
     impl Date {
         pub open spec fn year(&self) -> int {
