@@ -6,25 +6,25 @@ verus! {
 
     // --- Monotonicity helpers and lemmas ---
 
-    proof fn min_leq_compat(a: int, b: int, c: int)
+    proof fn lemma_min_leq_compat(a: int, b: int, c: int)
         requires a <= b,
         ensures min(a, c) <= min(b, c)
     {
         // QED
     }
 
-    proof fn euclid_div_mod_order(a: int, b: int, k: int) by(nonlinear_arith)
+    proof fn lemma_euclid_div_mod_order(a: int, b: int, k: int) by(nonlinear_arith)
         requires a < b, k > 0,
         ensures a / k < b / k || (a / k == b / k && a % k < b % k)
     {
     }
 
-    pub proof fn add_months_is_monotonic(d1: Date, d2: Date, n: int)
+    pub proof fn lemma_add_months_is_monotonic(d1: Date, d2: Date, n: int)
         requires d1.is_valid() && d2.is_valid() && d1.leq(d2),
         ensures d1.add_months(n).leq(d2.add_months(n))
     {
         if d1 == d2 {
-            date_leq_is_reflexive(d1.add_months(n));
+            lemma_date_leq_is_reflexive(d1.add_months(n));
             return;
         }
         let Date(y1, m1, day1) = d1;
@@ -61,7 +61,7 @@ verus! {
         } else if y1 == y2 && m1 < m2 {
             // Case B: same year, month differs
             assert(mi1 < mi2);
-            euclid_div_mod_order(mi1, mi2, 12);
+            lemma_euclid_div_mod_order(mi1, mi2, 12);
             if mi1 / 12 < mi2 / 12 {
                 assert(y1_ < y2_);
             } else {
@@ -74,19 +74,19 @@ verus! {
             assert(y1 == y2 && m1 == m2 && day1 < day2);
             assert(mi1 == mi2);
             assert(y1_ == y2_ && m1_ == m2_);
-            min_leq_compat(day1, day2, dim(y1_, m1_));
+            lemma_min_leq_compat(day1, day2, dim(y1_, m1_));
         }
     }
 
     // Helper: the first day of the next month is after any day in the current month
-    proof fn first_of_next_month_is_after(y: int, m: int, d: int)
+    proof fn lemma_first_of_next_month_is_after(y: int, m: int, d: int)
         requires 1 <= m <= 12, 1 <= d <= dim(y, m),
         ensures Date(y, m, d).lt(Date(y, m, 1).add_months(1))
     {
     }
 
     // Helper: add_days with n >= 0 on a valid date produces a result >= the date
-    proof fn add_days_pos_is_geq(d: Date, n: int)
+    proof fn lemma_add_days_pos_is_geq(d: Date, n: int)
         requires d.is_valid(), n >= 0,
         ensures d.leq(d.add_days(n)),
         decreases n
@@ -97,41 +97,41 @@ verus! {
             assert(dd + n > dim(y, m));
             let d_ = Date(y, m, 1).add_months(1);
             let n_ = n - (dim(y, m) - dd) - 1;
-            date_add_months_preserves_validity(Date(y, m, 1), 1);
-            first_of_next_month_is_after(y, m, dd);
-            add_days_pos_is_geq(d_, n_);
-            date_leq_is_transitive(d, d_, d_.add_days(n_));
+            lemma_date_add_months_preserves_validity(Date(y, m, 1), 1);
+            lemma_first_of_next_month_is_after(y, m, dd);
+            lemma_add_days_pos_is_geq(d_, n_);
+            lemma_date_leq_is_transitive(d, d_, d_.add_days(n_));
         }
     }
 
-    proof fn add_days_pos_monotonic_in_n(d: Date, n1: int, n2: int)
+    proof fn lemma_add_days_pos_monotonic_in_n(d: Date, n1: int, n2: int)
         requires d.is_valid(), 0 <= n1 <= n2,
         ensures d.add_days(n1).leq(d.add_days(n2)),
         decreases n2
     {
         let Date(y, m, dd) = d;
         if n1 == n2 {
-            date_leq_is_reflexive(d.add_days(n1));
+            lemma_date_leq_is_reflexive(d.add_days(n1));
         } else if 1 <= dd + n2 <= dim(y, m) {
         } else if 1 <= dd + n1 <= dim(y, m) {
             let d_ = Date(y, m, 1).add_months(1);
             let n2_ = n2 - (dim(y, m) - dd) - 1;
-            date_add_months_preserves_validity(Date(y, m, 1), 1);
-            first_of_next_month_is_after(y, m, dd + n1);
-            add_days_pos_is_geq(d_, n2_);
-            date_lt_implies_leq(Date(y, m, dd + n1), d_);
-            date_leq_is_transitive(Date(y, m, dd + n1), d_, d_.add_days(n2_));
+            lemma_date_add_months_preserves_validity(Date(y, m, 1), 1);
+            lemma_first_of_next_month_is_after(y, m, dd + n1);
+            lemma_add_days_pos_is_geq(d_, n2_);
+            lemma_date_lt_implies_leq(Date(y, m, dd + n1), d_);
+            lemma_date_leq_is_transitive(Date(y, m, dd + n1), d_, d_.add_days(n2_));
         } else {
             let d_ = Date(y, m, 1).add_months(1);
             let n1_ = n1 - (dim(y, m) - dd) - 1;
             let n2_ = n2 - (dim(y, m) - dd) - 1;
-            date_add_months_preserves_validity(Date(y, m, 1), 1);
-            add_days_pos_monotonic_in_n(d_, n1_, n2_);
+            lemma_date_add_months_preserves_validity(Date(y, m, 1), 1);
+            lemma_add_days_pos_monotonic_in_n(d_, n1_, n2_);
         }
     }
 
     // Helper: last day of previous month is before any day in current month
-    proof fn last_of_prev_month_is_before(y: int, m: int, d: int)
+    proof fn lemma_last_of_prev_month_is_before(y: int, m: int, d: int)
         requires 1 <= m <= 12, 1 <= d <= dim(y, m),
         ensures ({
             let Date(y_, m_, _) = Date(y, m, 1).add_months(-1);
@@ -141,7 +141,7 @@ verus! {
     }
 
     // Helper: add_days with n <= 0 on a valid date produces a result <= the date
-    proof fn add_days_neg_is_leq(d: Date, n: int)
+    proof fn lemma_add_days_neg_is_leq(d: Date, n: int)
         requires d.is_valid(), n <= 0,
         ensures d.add_days(n).leq(d),
         decreases abs(n)
@@ -150,103 +150,103 @@ verus! {
         if 1 <= dd + n {
         } else if dd > 1 {
             let n_ = dd - 1 + n;
-            add_days_neg_is_leq(Date(y, m, 1), n_);
-            date_leq_is_transitive(Date(y, m, 1).add_days(n_), Date(y, m, 1), d);
+            lemma_add_days_neg_is_leq(Date(y, m, 1), n_);
+            lemma_date_leq_is_transitive(Date(y, m, 1).add_days(n_), Date(y, m, 1), d);
         } else {
             let Date(y_, m_, _) = d.add_months(-1);
             let n_ = n + dim(y_, m_);
-            date_add_months_preserves_validity(Date(y, m, 1), -1);
+            lemma_date_add_months_preserves_validity(Date(y, m, 1), -1);
             if n_ >= 0 {
-                add_days_pos_is_geq(Date(y_, m_, 1), n_);
-                last_of_prev_month_is_before(y, m, dd);
-                dim_is_bounded(y_, m_);
-                add_days_pos_monotonic_in_n(Date(y_, m_, 1), n_, dim(y_, m_) - 1);
-                date_lt_implies_leq(Date(y_, m_, dim(y_, m_)), d);
-                date_leq_is_transitive(Date(y_, m_, 1).add_days(n_), Date(y_, m_, dim(y_, m_)), d);
+                lemma_add_days_pos_is_geq(Date(y_, m_, 1), n_);
+                lemma_last_of_prev_month_is_before(y, m, dd);
+                lemma_dim_is_bounded(y_, m_);
+                lemma_add_days_pos_monotonic_in_n(Date(y_, m_, 1), n_, dim(y_, m_) - 1);
+                lemma_date_lt_implies_leq(Date(y_, m_, dim(y_, m_)), d);
+                lemma_date_leq_is_transitive(Date(y_, m_, 1).add_days(n_), Date(y_, m_, dim(y_, m_)), d);
             } else {
-                add_days_neg_is_leq(Date(y_, m_, 1), n_);
-                last_of_prev_month_is_before(y, m, dd);
-                date_lt_implies_leq(Date(y_, m_, 1), Date(y_, m_, dim(y_, m_)));
-                date_lt_implies_leq(Date(y_, m_, dim(y_, m_)), d);
-                date_leq_is_transitive(Date(y_, m_, 1), Date(y_, m_, dim(y_, m_)), d);
-                date_leq_is_transitive(Date(y_, m_, 1).add_days(n_), Date(y_, m_, 1), d);
+                lemma_add_days_neg_is_leq(Date(y_, m_, 1), n_);
+                lemma_last_of_prev_month_is_before(y, m, dd);
+                lemma_date_lt_implies_leq(Date(y_, m_, 1), Date(y_, m_, dim(y_, m_)));
+                lemma_date_lt_implies_leq(Date(y_, m_, dim(y_, m_)), d);
+                lemma_date_leq_is_transitive(Date(y_, m_, 1), Date(y_, m_, dim(y_, m_)), d);
+                lemma_date_leq_is_transitive(Date(y_, m_, 1).add_days(n_), Date(y_, m_, 1), d);
             }
         }
     }
 
-    proof fn add_days_neg_monotonic_in_n(d: Date, n1: int, n2: int)
+    proof fn lemma_add_days_neg_monotonic_in_n(d: Date, n1: int, n2: int)
         requires d.is_valid(), n1 <= n2 <= 0,
         ensures d.add_days(n1).leq(d.add_days(n2)),
         decreases abs(n1)
     {
         let Date(y, m, dd) = d;
         if n1 == n2 {
-            date_leq_is_reflexive(d.add_days(n1));
+            lemma_date_leq_is_reflexive(d.add_days(n1));
         } else if 1 <= dd + n1 {
         } else if 1 <= dd + n2 {
-            add_days_neg_is_leq(d, n1);
+            lemma_add_days_neg_is_leq(d, n1);
             if dd > 1 {
-                add_days_neg_is_leq(Date(y, m, 1), dd - 1 + n1);
-                date_leq_is_transitive(Date(y, m, 1).add_days(dd - 1 + n1), Date(y, m, 1), Date(y, m, dd + n2));
+                lemma_add_days_neg_is_leq(Date(y, m, 1), dd - 1 + n1);
+                lemma_date_leq_is_transitive(Date(y, m, 1).add_days(dd - 1 + n1), Date(y, m, 1), Date(y, m, dd + n2));
             } else {
                 let Date(y_, m_, _) = d.add_months(-1);
                 let n1_ = n1 + dim(y_, m_);
-                date_add_months_preserves_validity(Date(y, m, 1), -1);
+                lemma_date_add_months_preserves_validity(Date(y, m, 1), -1);
                 if n1_ >= 0 {
-                    add_days_pos_is_geq(Date(y_, m_, 1), n1_);
-                    dim_is_bounded(y_, m_);
-                    add_days_pos_monotonic_in_n(Date(y_, m_, 1), n1_, dim(y_, m_) - 1);
-                    last_of_prev_month_is_before(y, m, dd + n2);
-                    date_lt_implies_leq(Date(y_, m_, dim(y_, m_)), Date(y, m, dd + n2));
-                    date_leq_is_transitive(Date(y_, m_, 1).add_days(n1_), Date(y_, m_, dim(y_, m_)), Date(y, m, dd + n2));
+                    lemma_add_days_pos_is_geq(Date(y_, m_, 1), n1_);
+                    lemma_dim_is_bounded(y_, m_);
+                    lemma_add_days_pos_monotonic_in_n(Date(y_, m_, 1), n1_, dim(y_, m_) - 1);
+                    lemma_last_of_prev_month_is_before(y, m, dd + n2);
+                    lemma_date_lt_implies_leq(Date(y_, m_, dim(y_, m_)), Date(y, m, dd + n2));
+                    lemma_date_leq_is_transitive(Date(y_, m_, 1).add_days(n1_), Date(y_, m_, dim(y_, m_)), Date(y, m, dd + n2));
                 } else {
-                    add_days_neg_is_leq(Date(y_, m_, 1), n1_);
-                    last_of_prev_month_is_before(y, m, dd + n2);
-                    date_lt_implies_leq(Date(y_, m_, 1), Date(y_, m_, dim(y_, m_)));
-                    date_lt_implies_leq(Date(y_, m_, dim(y_, m_)), Date(y, m, dd + n2));
-                    date_leq_is_transitive(Date(y_, m_, 1), Date(y_, m_, dim(y_, m_)), Date(y, m, dd + n2));
-                    date_leq_is_transitive(Date(y_, m_, 1).add_days(n1_), Date(y_, m_, 1), Date(y, m, dd + n2));
+                    lemma_add_days_neg_is_leq(Date(y_, m_, 1), n1_);
+                    lemma_last_of_prev_month_is_before(y, m, dd + n2);
+                    lemma_date_lt_implies_leq(Date(y_, m_, 1), Date(y_, m_, dim(y_, m_)));
+                    lemma_date_lt_implies_leq(Date(y_, m_, dim(y_, m_)), Date(y, m, dd + n2));
+                    lemma_date_leq_is_transitive(Date(y_, m_, 1), Date(y_, m_, dim(y_, m_)), Date(y, m, dd + n2));
+                    lemma_date_leq_is_transitive(Date(y_, m_, 1).add_days(n1_), Date(y_, m_, 1), Date(y, m, dd + n2));
                 }
             }
         } else if dd > 1 {
             let n1_ = dd - 1 + n1;
             let n2_ = dd - 1 + n2;
-            add_days_neg_monotonic_in_n(Date(y, m, 1), n1_, n2_);
+            lemma_add_days_neg_monotonic_in_n(Date(y, m, 1), n1_, n2_);
         } else {
             let Date(y_, m_, _) = d.add_months(-1);
             let n1_ = n1 + dim(y_, m_);
             let n2_ = n2 + dim(y_, m_);
-            date_add_months_preserves_validity(Date(y, m, 1), -1);
+            lemma_date_add_months_preserves_validity(Date(y, m, 1), -1);
             if n1_ >= 0 && n2_ >= 0 {
-                add_days_pos_monotonic_in_n(Date(y_, m_, 1), n1_, n2_);
+                lemma_add_days_pos_monotonic_in_n(Date(y_, m_, 1), n1_, n2_);
             } else if n1_ < 0 && n2_ >= 0 {
-                add_days_neg_is_leq(Date(y_, m_, 1), n1_);
-                add_days_pos_is_geq(Date(y_, m_, 1), n2_);
-                date_leq_is_transitive(Date(y_, m_, 1).add_days(n1_), Date(y_, m_, 1), Date(y_, m_, 1).add_days(n2_));
+                lemma_add_days_neg_is_leq(Date(y_, m_, 1), n1_);
+                lemma_add_days_pos_is_geq(Date(y_, m_, 1), n2_);
+                lemma_date_leq_is_transitive(Date(y_, m_, 1).add_days(n1_), Date(y_, m_, 1), Date(y_, m_, 1).add_days(n2_));
             } else {
-                add_days_neg_monotonic_in_n(Date(y_, m_, 1), n1_, n2_);
+                lemma_add_days_neg_monotonic_in_n(Date(y_, m_, 1), n1_, n2_);
             }
         }
     }
 
     // General monotonicity of add_days in n
-    proof fn add_days_monotonic_in_n(d: Date, n1: int, n2: int)
+    proof fn lemma_add_days_monotonic_in_n(d: Date, n1: int, n2: int)
         requires d.is_valid(), n1 <= n2,
         ensures d.add_days(n1).leq(d.add_days(n2))
     {
         if n1 >= 0 {
-            add_days_pos_monotonic_in_n(d, n1, n2);
+            lemma_add_days_pos_monotonic_in_n(d, n1, n2);
         } else if n2 <= 0 {
-            add_days_neg_monotonic_in_n(d, n1, n2);
+            lemma_add_days_neg_monotonic_in_n(d, n1, n2);
         } else {
-            add_days_neg_is_leq(d, n1);
-            add_days_pos_is_geq(d, n2);
-            date_leq_is_transitive(d.add_days(n1), d, d.add_days(n2));
+            lemma_add_days_neg_is_leq(d, n1);
+            lemma_add_days_pos_is_geq(d, n2);
+            lemma_date_leq_is_transitive(d.add_days(n1), d, d.add_days(n2));
         }
     }
 
     // Step decomposition: d.add_days(n) == d.add_days(1).add_days(n-1) for n > 0
-    proof fn add_days_step_forward(d: Date, n: int)
+    proof fn lemma_add_days_step_forward(d: Date, n: int)
         requires d.is_valid(), n > 0,
         ensures d.add_days(n) == d.add_days(1).add_days(n - 1)
     {
@@ -272,7 +272,7 @@ verus! {
     }
 
     // Step decomposition: d.add_days(n) == d.add_days(-1).add_days(n+1) for n < 0
-    proof fn add_days_step_backward(d: Date, n: int)
+    proof fn lemma_add_days_step_backward(d: Date, n: int)
         requires d.is_valid(), n < 0,
         ensures d.add_days(n) == d.add_days(-1).add_days(n + 1)
     {
@@ -298,7 +298,7 @@ verus! {
             assert(dd == 1);
             let Date(y_, m_, _) = d.add_months(-1);
             let dim_ = dim(y_, m_);
-            dim_is_bounded(y_, m_);
+            lemma_dim_is_bounded(y_, m_);
             assert(d.add_days(-1) == Date(y_, m_, 1).add_days(dim_ - 1));
             assert(1 <= dim_ - 1);
             assert(dim_ - 1 <= dim_);
@@ -317,7 +317,7 @@ verus! {
     }
 
     // One step forward: d1.lt(d2) ==> d1.add_days(1).leq(d2)
-    proof fn one_step_forward(d1: Date, d2: Date)
+    proof fn lemma_one_step_forward(d1: Date, d2: Date)
         requires d1.is_valid() && d2.is_valid() && d1.lt(d2),
         ensures d1.add_days(1).leq(d2)
     {
@@ -339,11 +339,11 @@ verus! {
                 let y_next = y1 + mi / 12;
                 let m_next = 1 + (mi % 12);
                 assert(d_next == Date(y_next, m_next, min(1, dim(y_next, m_next))));
-                dim_is_bounded(y_next, m_next);
+                lemma_dim_is_bounded(y_next, m_next);
                 assert(d_next == Date(y_next, m_next, 1));
-                euclid_div_mod_order(m1 - 1, m2 - 1 + (y2 - y1) * 12, 12);
+                lemma_euclid_div_mod_order(m1 - 1, m2 - 1 + (y2 - y1) * 12, 12);
                 if y_next < y2 || (y_next == y2 && m_next < m2) {
-                    date_lt_implies_leq(d_next, d2);
+                    lemma_date_lt_implies_leq(d_next, d2);
                 } else {
                     assert(y_next == y2 && m_next == m2);
                     assert(d_next == Date(y2, m2, 1));
@@ -353,7 +353,7 @@ verus! {
     }
 
     // One step backward: d1.lt(d2) ==> d1.leq(d2.add_days(-1))
-    proof fn one_step_backward(d1: Date, d2: Date)
+    proof fn lemma_one_step_backward(d1: Date, d2: Date)
         requires d1.is_valid() && d2.is_valid() && d1.lt(d2),
         ensures d1.leq(d2.add_days(-1))
     {
@@ -367,19 +367,19 @@ verus! {
         } else {
             if dd2 > 1 {
                 assert(d2.add_days(-1) == Date(y2, m2, dd2 - 1));
-                date_lt_implies_leq(d1, d2.add_days(-1));
+                lemma_date_lt_implies_leq(d1, d2.add_days(-1));
             } else {
                 assert(dd2 == 1);
                 let Date(y2_, m2_, _) = d2.add_months(-1);
                 let dim_ = dim(y2_, m2_);
-                dim_is_bounded(y2_, m2_);
+                lemma_dim_is_bounded(y2_, m2_);
                 assert(d2.add_days(-1) == Date(y2_, m2_, 1).add_days(dim_ - 1));
                 assert(Date(y2_, m2_, 1).add_days(dim_ - 1) == Date(y2_, m2_, dim_));
                 let mi = m2 - 2;
                 assert(y2_ == y2 + mi / 12);
                 assert(m2_ == 1 + (mi % 12));
                 if y1 < y2_ || (y1 == y2_ && m1 < m2_) {
-                    date_lt_implies_leq(d1, Date(y2_, m2_, dim_));
+                    lemma_date_lt_implies_leq(d1, Date(y2_, m2_, dim_));
                 } else {
                     assert(y1 == y2_ && m1 == m2_);
                 }
@@ -388,47 +388,47 @@ verus! {
     }
 
     // Monotonicity of add_days in the date argument
-    pub proof fn add_days_is_monotonic(d1: Date, d2: Date, n: int)
+    pub proof fn lemma_add_days_is_monotonic(d1: Date, d2: Date, n: int)
         requires d1.is_valid() && d2.is_valid() && d1.leq(d2),
         ensures d1.add_days(n).leq(d2.add_days(n)),
         decreases abs(n)
     {
         if d1 == d2 {
-            date_leq_is_reflexive(d1.add_days(n));
+            lemma_date_leq_is_reflexive(d1.add_days(n));
         } else if n == 0 {
-            date_lt_implies_leq(d1, d2);
+            lemma_date_lt_implies_leq(d1, d2);
         } else if n > 0 {
-            add_days_step_forward(d1, n);
-            one_step_forward(d1, d2);
-            date_add_days_preserves_validity(d1, 1);
-            add_days_is_monotonic(d1.add_days(1), d2, n - 1);
-            add_days_monotonic_in_n(d2, n - 1, n);
-            date_leq_is_transitive(d1.add_days(n), d2.add_days(n - 1), d2.add_days(n));
+            lemma_add_days_step_forward(d1, n);
+            lemma_one_step_forward(d1, d2);
+            lemma_date_add_days_preserves_validity(d1, 1);
+            lemma_add_days_is_monotonic(d1.add_days(1), d2, n - 1);
+            lemma_add_days_monotonic_in_n(d2, n - 1, n);
+            lemma_date_leq_is_transitive(d1.add_days(n), d2.add_days(n - 1), d2.add_days(n));
         } else {
-            add_days_step_backward(d2, n);
-            one_step_backward(d1, d2);
-            date_add_days_preserves_validity(d2, -1);
-            add_days_is_monotonic(d1, d2.add_days(-1), n + 1);
-            add_days_monotonic_in_n(d1, n, n + 1);
-            date_leq_is_transitive(d1.add_days(n), d1.add_days(n + 1), d2.add_days(n));
+            lemma_add_days_step_backward(d2, n);
+            lemma_one_step_backward(d1, d2);
+            lemma_date_add_days_preserves_validity(d2, -1);
+            lemma_add_days_is_monotonic(d1, d2.add_days(-1), n + 1);
+            lemma_add_days_monotonic_in_n(d1, n, n + 1);
+            lemma_date_leq_is_transitive(d1.add_days(n), d1.add_days(n + 1), d2.add_days(n));
         }
     }
 
     // Monotonicity of Date-Period Addition
-    pub proof fn date_add_period_is_monotonic(d1: Date, d2: Date, p: Period)
+    pub proof fn theorem_date_add_period_is_monotonic(d1: Date, d2: Date, p: Period)
         requires d1.is_valid() && d2.is_valid() && d1.leq(d2),
         ensures d1.add_period(p).leq(d2.add_period(p))
     {
         let m = p.years() * 12 + p.months();
         // Step 1: add_months is monotonic
-        add_months_is_monotonic(d1, d2, m);
+        lemma_add_months_is_monotonic(d1, d2, m);
 
         // Step 2: both intermediate dates are valid
-        date_add_months_preserves_validity(d1, m);
-        date_add_months_preserves_validity(d2, m);
+        lemma_date_add_months_preserves_validity(d1, m);
+        lemma_date_add_months_preserves_validity(d2, m);
 
         // Step 3: add_days is monotonic in the date argument
-        add_days_is_monotonic(d1.add_months(m), d2.add_months(m), p.days());
+        lemma_add_days_is_monotonic(d1.add_months(m), d2.add_months(m), p.days());
     }
 
 } // verus!

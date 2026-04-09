@@ -51,48 +51,48 @@ verus! {
         calendar[month - 1]
     }
 
-    pub proof fn dim_is_bounded(year: int, month: int)
+    pub proof fn lemma_dim_is_bounded(year: int, month: int)
         requires 1 <= month <= 12,
         ensures 28 <= dim(year, month) <= 31
     {
         // QED
     }
 
-    proof fn epoch_is_valid() {
+    proof fn lemma_epoch_is_valid() {
         EPOCH.is_valid();
     }
 
-    pub proof fn date_leq_is_reflexive(d: Date)
+    pub proof fn lemma_date_leq_is_reflexive(d: Date)
         ensures d.leq(d) {}
 
-    pub proof fn date_leq_is_transitive(d1: Date, d2: Date, d3: Date)
+    pub proof fn lemma_date_leq_is_transitive(d1: Date, d2: Date, d3: Date)
         requires d1.leq(d2) && d2.leq(d3),
         ensures d1.leq(d3) {}
 
-    proof fn date_leq_is_antisymmetric(d1: Date, d2: Date)
+    proof fn lemma_date_leq_is_antisymmetric(d1: Date, d2: Date)
         requires d1.leq(d2) && d2.leq(d1),
         ensures d1 == d2 {}
 
-    proof fn date_lt_is_irreflexive(d: Date)
+    proof fn lemma_date_lt_is_irreflexive(d: Date)
         ensures !d.lt(d) {}
 
-    proof fn date_lt_is_asymmetric(d1: Date, d2: Date)
+    proof fn lemma_date_lt_is_asymmetric(d1: Date, d2: Date)
         requires d1.lt(d2),
         ensures !d2.lt(d1) {}
 
-    proof fn date_lt_is_transitive(d1: Date, d2: Date, d3: Date)
+    proof fn lemma_date_lt_is_transitive(d1: Date, d2: Date, d3: Date)
         requires d1.lt(d2) && d2.lt(d3),
         ensures d1.lt(d3) {}
 
-    pub proof fn date_lt_implies_leq(d1: Date, d2: Date)
+    pub proof fn lemma_date_lt_implies_leq(d1: Date, d2: Date)
         requires d1.lt(d2),
         ensures d1.leq(d2) {}
 
-    proof fn date_lt_implies_neq(d1: Date, d2: Date)
+    proof fn lemma_date_lt_implies_neq(d1: Date, d2: Date)
         requires d1.lt(d2),
         ensures d1 != d2 {}
 
-    proof fn date_leq_neq_implies_lt(d1: Date, d2: Date)
+    proof fn lemma_date_leq_neq_implies_lt(d1: Date, d2: Date)
         requires d1.leq(d2) && d1 != d2,
         ensures d1.lt(d2) {}
 
@@ -120,22 +120,22 @@ verus! {
         }
     }
 
-    proof fn period_add_zero_identity(p: Period)
+    proof fn lemma_period_add_zero_identity(p: Period)
         ensures p.add(Period(0,0,0)) == p {}
 
-    proof fn period_add_commutative(p1: Period, p2: Period)
+    proof fn lemma_period_add_commutative(p1: Period, p2: Period)
         ensures p1.add(p2) == p2.add(p1) {}
 
-    proof fn period_add_associative(p1: Period, p2: Period, p3: Period)
+    proof fn lemma_period_add_associative(p1: Period, p2: Period, p3: Period)
         ensures p1.add(p2).add(p3) == p1.add(p2.add(p3)) {}
 
-    proof fn period_scale_identity(p: Period)
+    proof fn lemma_period_scale_identity(p: Period)
         ensures p.scale(1) == p {}
 
-    proof fn period_scale_commutative(p: Period, f1: int, f2: int) by (nonlinear_arith)
+    proof fn lemma_period_scale_commutative(p: Period, f1: int, f2: int) by (nonlinear_arith)
         ensures p.scale(f1).scale(f2) == p.scale(f2).scale(f1) {}
 
-    proof fn period_scale_associative(p: Period, f1: int, f2: int) by (nonlinear_arith)
+    proof fn lemma_period_scale_associative(p: Period, f1: int, f2: int) by (nonlinear_arith)
         ensures p.scale(f1).scale(f2) == p.scale(f1*f2) {}
 
     impl Date {
@@ -191,14 +191,14 @@ verus! {
         }
     }
 
-    pub proof fn date_add_months_preserves_validity(date: Date, n: int)
+    pub proof fn lemma_date_add_months_preserves_validity(date: Date, n: int)
         requires date.is_valid(),
         ensures date.add_months(n).is_valid()
     {
         // QED
     }
 
-    proof fn date_add_days_pos_preserves_validity(date: Date, n: int)
+    proof fn lemma_date_add_days_pos_preserves_validity(date: Date, n: int)
         requires date.is_valid() && n >= 0,
         ensures date.add_days(n).is_valid(),
         decreases n
@@ -210,11 +210,11 @@ verus! {
             // ADD-DAYS-OVER rule
             assert(d + n > dim(y, m));
             let n_ = n - (dim(y, m) - d) - 1;
-            date_add_days_pos_preserves_validity(Date(y, m, 1).add_months(1), n_);
+            lemma_date_add_days_pos_preserves_validity(Date(y, m, 1).add_months(1), n_);
         }
     }
 
-    proof fn date_add_days_neg_preserves_validity(date: Date, n: int)
+    proof fn lemma_date_add_days_neg_preserves_validity(date: Date, n: int)
         requires date.is_valid() && n < 0,
         ensures date.add_days(n).is_valid(),
         decreases abs(n)
@@ -227,7 +227,7 @@ verus! {
             // ADD-DAYS-UNDER1 rule
             assert(d <= dim(y, m));
             assert(d + n <= 0);
-            date_add_days_neg_preserves_validity(Date(y, m, 1), d - 1 + n);
+            lemma_date_add_days_neg_preserves_validity(Date(y, m, 1), d - 1 + n);
         } else {
             // ADD-DAYS-UNDER2 rule
             assert(d == 1);
@@ -236,44 +236,44 @@ verus! {
             let n_ = n + dim(y_, m_);
             // Split into positive and negative cases when recursing
             if n_ >= 0 {
-                date_add_days_pos_preserves_validity(Date(y_, m_, 1), n_)
+                lemma_date_add_days_pos_preserves_validity(Date(y_, m_, 1), n_)
             } else {
-                date_add_days_neg_preserves_validity(Date(y_, m_, 1), n_)
+                lemma_date_add_days_neg_preserves_validity(Date(y_, m_, 1), n_)
             }
         }
     }
 
-    pub proof fn date_add_days_preserves_validity(date: Date, n: int)
+    pub proof fn lemma_date_add_days_preserves_validity(date: Date, n: int)
         requires date.is_valid(),
         ensures date.add_days(n).is_valid()
     {
         if n < 0 {
-            date_add_days_neg_preserves_validity(date, n);
+            lemma_date_add_days_neg_preserves_validity(date, n);
         } else {
-            date_add_days_pos_preserves_validity(date, n);
+            lemma_date_add_days_pos_preserves_validity(date, n);
         }
     }
 
-    proof fn date_add_period_preserves_validity(date: Date, period: Period)
+    proof fn theorem_date_add_period_preserves_validity(date: Date, period: Period)
         requires date.is_valid(),
         ensures date.add_period(period).is_valid()
     {
         let months_to_add = period.years() * 12 + period.months();
-        date_add_months_preserves_validity(date, months_to_add);
+        lemma_date_add_months_preserves_validity(date, months_to_add);
         let d_ = date.add_months(months_to_add);
-        date_add_days_preserves_validity(d_, period.days());
+        lemma_date_add_days_preserves_validity(d_, period.days());
     }
 
 
     fn main() {
         // Theorem 1: Well-formedness
         assert forall|d: Date, p: Period| #![auto]
-            d.is_valid() implies d.add_period(p).is_valid() by { date_add_period_preserves_validity(d, p); }
+            d.is_valid() implies d.add_period(p).is_valid() by { theorem_date_add_period_preserves_validity(d, p); }
 
         // Theorem 2: Monotonicity of Date-Period Addition
         assert forall|d1: Date, d2: Date, p: Period| #![auto]
             d1.is_valid() && d2.is_valid() && d1.leq(d2) implies
-                d1.add_period(p).leq(d2.add_period(p)) by { date_add_period_is_monotonic(d1, d2, p); }
+                d1.add_period(p).leq(d2.add_period(p)) by { theorem_date_add_period_is_monotonic(d1, d2, p); }
 
         // Theorem 3: Round-trip conversion of Epoch-based representation
         assert forall|ed: EpochDelta| #![auto]

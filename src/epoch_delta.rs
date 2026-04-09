@@ -141,7 +141,7 @@ verus! {
             let n_ = n - (dim(y, m) - d) - 1;
             let next = Date(y, m, 1).add_months(1);
             assert(date.add_days(n) == next.add_days(n_));
-            date_add_months_preserves_validity(Date(y, m, 1), 1);
+            lemma_date_add_months_preserves_validity(Date(y, m, 1), 1);
             lemma_from_ymd_add_days(next, n_);
             lemma_from_ymd_split(y, m, d);
             lemma_from_ymd_month_step(y, m);
@@ -156,7 +156,7 @@ verus! {
             let Date(y_, m_, _) = date.add_months(-1);
             let n_ = n + dim(y_, m_);
             assert(date.add_days(n) == Date(y_, m_, 1).add_days(n_));
-            date_add_months_preserves_validity(date, -1);
+            lemma_date_add_months_preserves_validity(date, -1);
             lemma_from_ymd_add_days(Date(y_, m_, 1), n_);
             // from_ymd_first(y, m) == from_ymd_first(y_, m_) + dim(y_, m_)
             // follows from lemma_from_ymd_month_step(y_, m_) since Date(y_, m_, 1).add_months(1) == date
