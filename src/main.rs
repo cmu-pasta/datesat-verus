@@ -275,6 +275,10 @@ verus! {
             d1.is_valid() && d2.is_valid() && d1.leq(d2) implies
                 d1.add_period(p).leq(d2.add_period(p)) by { date_add_period_is_monotonic(d1, d2, p); }
 
+        // Theorem 3: Round-trip conversion of Epoch-based representation
+        assert forall|ed: EpochDelta| #![auto]
+            EpochDelta::from_ymd(EpochDelta::to_ymd(ed)) == ed by { theorem_from_ymd_to_ymd_inverse(ed); }
+
     }
 
 } // verus!
