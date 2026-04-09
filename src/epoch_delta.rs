@@ -74,6 +74,12 @@ verus! {
     pub proof fn lemma_delta_zero_is_epoch() ensures
         EpochDelta::to_ymd(EpochDelta(0)) == EPOCH {}
 
+    // Congruence between date and epoch-delta representation
+    // is established at construction of an EpochDelta from Date(y, m, d)
+    pub open spec fn congruent(d: Date, ed: EpochDelta) -> bool {
+        ed == EpochDelta::from_ymd(d)
+    }
+
     // The from_ymd delta for any date = first-of-month value + (day - 1)
     proof fn lemma_from_ymd_split(y: int, m: int, d: int)
         ensures EpochDelta::from_ymd(Date(y, m, d)).delta()
@@ -264,8 +270,20 @@ verus! {
         }
     }
 
-    pub open spec fn congruent(d: Date, ed: EpochDelta) -> bool {
-        ed == EpochDelta::from_ymd(d)
+    // The other round-trip: to_ymd(from_ymd(d)) == d for valid dates.
+    // Follows from the first round-trip + injectivity of from_ymd.
+    pub proof fn theorem_to_ymd_from_ymd_inverse(d: Date)
+        requires d.is_valid(),
+        ensures EpochDelta::to_ymd(EpochDelta::from_ymd(d)) == d,
+    {
+        let ed = EpochDelta::from_ymd(d);
+        let d2 = ed.to_ymd(); // = EPOCH.add_days(from_ymd(d).delta())
+        // from_ymd(to_ymd(ed)) == ed, so from_ymd(d2) == from_ymd(d)
+        theorem_from_ymd_to_ymd_inverse(ed);
+        // d2 is valid since EPOCH is valid and add_days preserves validity
+        lemma_date_add_days_preserves_validity(EPOCH, ed.delta());
+        // d and d2 are both valid with from_ymd(d) == from_ymd(d2), so d == d2 by injectivity
+        theorem_congruent_iff_from_ymd(d, ed, d2, EpochDelta::from_ymd(d2));
     }
 
     pub proof fn theorem_congruent_iff_from_ymd(d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta)
@@ -289,6 +307,33 @@ verus! {
         // ed1 == ed2 ==> delta equal ==> !d1.lt(d2) && !d2.lt(d1) ==> d1 == d2 [totality + contrapositive]
     }
 
+    // Congruence is preserved under period addition.
+    pub proof fn theorem_congruent_add_period(d: Date, ed: EpochDelta, p: Period)
+        requires d.is_valid(), congruent(d, ed),
+        ensures congruent(d.add_period(p), ed.add_period(p)),
+    {
+        // ed == from_ymd(d) by definition of congruent.
+        // Goal: from_ymd(d.add_period(p)) == ed.add_period(p).
+        let n = p.years() * 12 + p.months();
+        let days = p.days();
 
+        // Step 1: d == ed.to_ymd() (the other round-trip)
+        theorem_to_ymd_from_ymd_inverse(d);
+        assert(d == ed.to_ymd());
+
+        // Step 2: d.add_months(n) is valid
+        lemma_date_add_months_preserves_validity(d, n);
+
+        // Step 3: from_ymd(d.add_months(n).add_days(days)).delta()
+        //       == from_ymd(d.add_months(n)).delta() + days
+        lemma_from_ymd_add_days(d.add_months(n), days);
+
+        // Step 4: ed.add_period(p)
+        //       = ed.add_months(n).add_days(days)
+        //       = EpochDelta(from_ymd(ed.to_ymd().add_months(n)).delta() + days)
+        //       = EpochDelta(from_ymd(d.add_months(n)).delta() + days)   [since d == ed.to_ymd()]
+        //       = from_ymd(d.add_months(n).add_days(days))                [by step 3]
+        //       = from_ymd(d.add_period(p))
+    }
 
 } // verus!

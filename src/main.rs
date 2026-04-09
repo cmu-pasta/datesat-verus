@@ -283,6 +283,22 @@ verus! {
         assert forall|ed: EpochDelta| #![auto]
             EpochDelta::from_ymd(EpochDelta::to_ymd(ed)) == ed by { theorem_from_ymd_to_ymd_inverse(ed); }
 
+        // Theorem 4: Inverse round-trip for valid dates
+        assert forall|d: Date| #![auto]
+            d.is_valid() implies EpochDelta::to_ymd(EpochDelta::from_ymd(d)) == d by { theorem_to_ymd_from_ymd_inverse(d); }
+
+        // Theorem 5: Congruent pairs agree on ordering and equality
+        assert forall|d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta| #![auto]
+            d1.is_valid() && d2.is_valid() && congruent(d1, ed1) && congruent(d2, ed2) implies
+                (d1.lt(d2) <==> ed1.lt(ed2)) && (d1 == d2 <==> ed1 == ed2)
+            by { theorem_congruent_iff_from_ymd(d1, ed1, d2, ed2); }
+
+        // Theorem 6: Congruence is preserved under period addition
+        assert forall|d: Date, ed: EpochDelta, p: Period| #![auto]
+            d.is_valid() && congruent(d, ed) implies
+                congruent(d.add_period(p), ed.add_period(p))
+            by { theorem_congruent_add_period(d, ed, p); }
+
     }
 
 } // verus!
