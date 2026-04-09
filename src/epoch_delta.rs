@@ -167,12 +167,126 @@ verus! {
         }
     }
 
-    // The inverse: from_ymd(ed.to_ymd()) == ed for all ed
+
+    // Round-trip conversion: from_ymd(ed.to_ymd()) == ed for all ed
     pub proof fn theorem_from_ymd_to_ymd_inverse(ed: EpochDelta)
         ensures EpochDelta::from_ymd(ed.to_ymd()) == ed
     {
         lemma_epoch_is_at_delta_zero();
         lemma_from_ymd_add_days(EPOCH, ed.delta());
+    }
+
+    // For m1 < m2 in the same year, the first-of-month delta increases by at least dim(y, m1).
+    proof fn lemma_from_ymd_first_of_month_increasing(y: int, m1: int, m2: int)
+        requires 1 <= m1, m1 < m2, m2 <= 12,
+        ensures EpochDelta::from_ymd(Date(y, m2, 1)).delta()
+             >= EpochDelta::from_ymd(Date(y, m1, 1)).delta() + dim(y, m1),
+        decreases m2 - m1,
+    {
+        // month_step: from_ymd(Date(y, m1, 1).add_months(1)) = from_ymd(Date(y, m1, 1)) + dim(y, m1)
+        // For m1 < 12: Date(y, m1, 1).add_months(1) = Date(y, m1+1, 1)
+        lemma_from_ymd_month_step(y, m1);
+        assert(Date(y, m1, 1).add_months(1) == Date(y, m1 + 1, 1));
+        if m2 > m1 + 1 {
+            lemma_from_ymd_first_of_month_increasing(y, m1 + 1, m2);
+        }
+    }
+
+    // from_ymd is strictly monotone on valid dates.
+    proof fn lemma_from_ymd_strict_monotone(d1: Date, d2: Date)
+        requires d1.is_valid(), d2.is_valid(), d1.lt(d2),
+        ensures EpochDelta::from_ymd(d1).delta() < EpochDelta::from_ymd(d2).delta(),
+    {
+        let Date(y1, m1, dd1) = d1;
+        let Date(y2, m2, dd2) = d2;
+        lemma_from_ymd_split(y1, m1, dd1);
+        lemma_from_ymd_split(y2, m2, dd2);
+        if y1 == y2 && m1 == m2 {
+            // Same year and month: delta difference = dd2 - dd1 > 0
+        } else if y1 == y2 {
+            // Same year, m1 < m2
+            lemma_from_ymd_first_of_month_increasing(y1, m1, m2);
+            // base(m2) >= base(m1) + dim(y1, m1), and dd1 <= dim(y1, m1), dd2 >= 1
+        } else {
+            // y1 < y2: chain through year boundaries
+            // from_ymd(Date(y1, 12, 31)) >= from_ymd(d1) since m1 <= 12, dd1 <= dim
+            lemma_from_ymd_split(y1, 12, 31);
+            if m1 < 12 {
+                lemma_from_ymd_first_of_month_increasing(y1, m1, 12);
+            }
+            // from_ymd(Date(y1+1, 1, 1)) = from_ymd(Date(y1, 12, 1)) + 31 by month_step(y1, 12)
+            lemma_from_ymd_month_step(y1, 12);
+            assert(Date(y1, 12, 1).add_months(1) == Date(y1 + 1, 1, 1));
+            // So from_ymd(Date(y1+1, 1, 1)) > from_ymd(Date(y1, 12, 31))
+            // Now chain to (y2, m2, dd2)
+            if y2 > y1 + 1 {
+                // Induction through intermediate years
+                lemma_from_ymd_cross_year_lower_bound(y1 + 1, y2);
+            }
+            // from_ymd(Date(y2, 1, 1)) <= from_ymd(Date(y2, m2, dd2))
+            lemma_from_ymd_split(y2, 1, 1);
+            if m2 > 1 {
+                lemma_from_ymd_first_of_month_increasing(y2, 1, m2);
+            }
+        }
+    }
+
+    // One year has >= 365 days: from_ymd(Date(y+1, 1, 1)) >= from_ymd(Date(y, 1, 1)) + 365.
+    // Proof: directly from the from_ymd formula.
+    // from_ymd(Date(y+1, 1, 1)) - from_ymd(Date(y, 1, 1))
+    //   = 365 + (leap_correction(y-2000) - leap_correction(y-2001))
+    //   = 365 + (1 if leap(y) else 0)
+    //   >= 365
+    proof fn lemma_from_ymd_one_year_step(y: int)
+        ensures EpochDelta::from_ymd(Date(y + 1, 1, 1)).delta()
+             >= EpochDelta::from_ymd(Date(y, 1, 1)).delta() + 365,
+    {
+        // Both Jan 1 dates have month <= 2, so from_ymd uses years_elapsed = year - 1 - 2000
+        // and months_elapsed = 10, days_elapsed = 0.
+        // So delta(Date(y, 1, 1)) = 365*(y-2001) + lc(y-2001) + 306
+        // and delta(Date(y+1, 1, 1)) = 365*(y-2000) + lc(y-2000) + 306
+        // Difference = 365 + lc(y-2000) - lc(y-2001)
+        let k = y - 2000;
+        lemma_leap_correction(k);
+        // lc(k) - lc(k-1) = if leap(y) { 1 } else { 0 } >= 0
+    }
+
+    // from_ymd(Date(y2, 1, 1)) >= from_ymd(Date(y1, 1, 1)) + 365 when y1 < y2
+    proof fn lemma_from_ymd_cross_year_lower_bound(y1: int, y2: int)
+        requires y1 < y2,
+        ensures EpochDelta::from_ymd(Date(y2, 1, 1)).delta()
+             >= EpochDelta::from_ymd(Date(y1, 1, 1)).delta() + 365,
+        decreases y2 - y1,
+    {
+        lemma_from_ymd_one_year_step(y1);
+        if y2 > y1 + 1 {
+            lemma_from_ymd_cross_year_lower_bound(y1 + 1, y2);
+        }
+    }
+
+    pub open spec fn congruent(d: Date, ed: EpochDelta) -> bool {
+        ed == EpochDelta::from_ymd(d)
+    }
+
+    pub proof fn theorem_congruent_iff_from_ymd(d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta)
+        requires d1.is_valid(), d2.is_valid(), congruent(d1, ed1), congruent(d2, ed2),
+        ensures
+            (d1.lt(d2) <==> ed1.lt(ed2)),
+            (d1 == d2   <==> ed1 == ed2),
+    {
+        // ed1 == from_ymd(d1), ed2 == from_ymd(d2) by definition of congruent
+        lemma_date_lt_is_total(d1, d2);
+        if d1.lt(d2) {
+            lemma_from_ymd_strict_monotone(d1, d2);
+        }
+        if d2.lt(d1) {
+            lemma_from_ymd_strict_monotone(d2, d1);
+        }
+        // All four ensures clauses follow:
+        // d1.lt(d2) ==> delta(d1) < delta(d2) ==> ed1.lt(ed2)          [strict mono]
+        // ed1.lt(ed2) ==> delta(d1) < delta(d2) ==> !d2.lt(d1) && d1 != d2 ==> d1.lt(d2) [totality + contrapositive]
+        // d1 == d2 ==> from_ymd(d1) == from_ymd(d2) ==> ed1 == ed2     [trivial]
+        // ed1 == ed2 ==> delta equal ==> !d1.lt(d2) && !d2.lt(d1) ==> d1 == d2 [totality + contrapositive]
     }
 
 

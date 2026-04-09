@@ -96,6 +96,10 @@ verus! {
         requires d1.leq(d2) && d1 != d2,
         ensures d1.lt(d2) {}
 
+    pub proof fn lemma_date_lt_is_total(d1: Date, d2: Date)
+        ensures d1 == d2 || d1.lt(d2) || d2.lt(d1)
+    {}
+
     pub struct Period(pub int, pub int, pub int);
 
     impl Period {
