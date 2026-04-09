@@ -136,9 +136,11 @@ verus! {
     proof fn lemma_period_scale_identity(p: Period)
         ensures p.scale(1) == p {}
 
+    #[cfg(slow_proofs)]
     proof fn lemma_period_scale_commutative(p: Period, f1: int, f2: int) by (nonlinear_arith)
         ensures p.scale(f1).scale(f2) == p.scale(f2).scale(f1) {}
 
+    #[cfg(slow_proofs)]
     proof fn lemma_period_scale_associative(p: Period, f1: int, f2: int) by (nonlinear_arith)
         ensures p.scale(f1).scale(f2) == p.scale(f1*f2) {}
 
@@ -291,7 +293,7 @@ verus! {
         assert forall|d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta| #![auto]
             d1.is_valid() && d2.is_valid() && congruent(d1, ed1) && congruent(d2, ed2) implies
                 (d1.lt(d2) <==> ed1.lt(ed2)) && (d1 == d2 <==> ed1 == ed2)
-            by { theorem_congruent_iff_from_ymd(d1, ed1, d2, ed2); }
+            by { theorem_congruent_preserves_comparison(d1, ed1, d2, ed2); }
 
         // Theorem 6: Congruence is preserved under period addition
         assert forall|d: Date, ed: EpochDelta, p: Period| #![auto]

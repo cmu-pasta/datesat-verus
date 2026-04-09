@@ -19,42 +19,35 @@ verus! {
             self.delta() <= other.delta()
         }
 
-        pub open spec fn is_valid(self) -> bool {
-            true
-        }
-
-        pub open spec fn to_ymd(self) -> Date {
+        pub open spec fn to_ymd(self) -> Date
+        {
             EPOCH.add_days(self.delta())
         }
 
         pub open spec fn from_ymd(date: Date) -> EpochDelta
-            recommends EPOCH == Date(2000, 3, 1)
+            recommends EPOCH == Date(2000, 3, 1) // the logic depends on the specific value of EPOCH
         {
-            // Years elapsed since Mar 1, 2000 => (year - 2000) - (month <= 2 as nat)
-            let years_elapsed  = (if date.month() <= 2 { date.year() - 1 } else { date.year() }) - 2000;
+            // First count how many days elapsed owing to the years elapsed since Mar 1, 2000
+            let ye = years_since_epoch(date.year(), date.month());
+            let days_by_years = 365*ye + leap_correction(ye);
 
-            // Months elapsed since March
-            let months_elapsed =  if date.month() <= 2 { date.month() + 9 } else { date.month() - 3 };
+            // Then count how many days elapsed owing to the months elapsed since March
+            let me = months_since_march(date.month());
 
-            // Days elapsed since 1st
-            let days_elapsed_in_month = date.day() - 1;
-
-            // Given Y years since 2000, how many days is that?
-            let leap_days_elapsed = years_elapsed/4 - years_elapsed/100 + years_elapsed/400;
-            let days_elapsed_by_years_elapsed = 365*years_elapsed + leap_days_elapsed;
-
-            // Given X months since March, how many days is that?
-            // Note: This is some wacky logic, but it works
+            // Note: This is some wacky logic, but it works.
             // Since March, the dim array is [31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31, 28_or_29]
             // Cumulatively for months elapsed in the range 0..11 inclusive, this is
             //   [0, 31, 61, 92, 122, 153, 184, 214, 245, 275, 306, 337]
             // It turns out that this is basically (153 * X + 2) / 5, assuming floor division.
-            let days_elapsed_by_months_elapsed = (153*months_elapsed + 2)/5;
+            let days_by_months = (153*me + 2)/5;
 
-            EpochDelta(days_elapsed_by_years_elapsed +
-                days_elapsed_by_months_elapsed + days_elapsed_in_month)
+            // Then count how many days elapsed in the current calendar month
+            let days_by_dim = date.day() - 1;
+
+            // That's your epoch delta
+            EpochDelta(days_by_years + days_by_months + days_by_dim)
         }
-        
+
         pub open spec fn add_days(self, n: int) -> EpochDelta {
             EpochDelta(self.delta() + n)
         }
@@ -68,44 +61,65 @@ verus! {
         }
     }
 
+    // Helper spec functions for the from_ymd formula.
+
+    // Years elapsed since the epoch (March 1, 2000).
+    // Months Jan-Feb are counted as part of the previous year,
+    // so that the leap day (Feb 29) falls at the end of the epoch-year.
+    pub open spec fn years_since_epoch(y: int, m: int) -> int {
+        (if m <= 2 { y - 1 } else { y }) - 2000
+    }
+
+    // Months elapsed since March, where March = 0 .. February = 11.
+    pub open spec fn months_since_march(m: int) -> int {
+        if m <= 2 { m + 9 } else { m - 3 }
+    }
+
+    // Leap-year correction for k years: number of leap years in [1..k] relative to 2000.
+    // Since 2000 = 0 (mod 400), this is simply k/4 - k/100 + k/400.
+    pub open spec fn leap_correction(k: int) -> int {
+        k/4 - k/100 + k/400
+    }
+
+    // The EPOCH is at delta = 0
     pub proof fn lemma_epoch_is_at_delta_zero() ensures
         EpochDelta::from_ymd(EPOCH).delta() == 0 {}
 
+    // A date with delta = 0 is the EPOCH
     pub proof fn lemma_delta_zero_is_epoch() ensures
         EpochDelta::to_ymd(EpochDelta(0)) == EPOCH {}
 
-    // Congruence between date and epoch-delta representation
-    // is established at construction of an EpochDelta from Date(y, m, d)
+    // Congruence between Date and EpochDelta: asserts they are related by from_ymd.
+    // Whether this relation preserves comparison and arithmetic is proven below.
     pub open spec fn congruent(d: Date, ed: EpochDelta) -> bool {
         ed == EpochDelta::from_ymd(d)
     }
 
     // The from_ymd delta for any date = first-of-month value + (day - 1)
-    proof fn lemma_from_ymd_split(y: int, m: int, d: int)
+    proof fn lemma_from_ymd_day_offset(y: int, m: int, d: int)
         ensures EpochDelta::from_ymd(Date(y, m, d)).delta()
         == EpochDelta::from_ymd(Date(y, m, 1)).delta() + (d - 1)
     {}
 
-    // Leap year correction: lc(k) = k/4 - k/100 + k/400
-    // lc(k) - lc(k-1) == 1 iff leap(year 2000+k), else 0.
-    // This connects the from_ymd formula to dim(y, 2) for the Feb->Mar boundary.
     // Division step: floor(k/n) - floor((k-1)/n) == 1 iff n divides k, else 0
     proof fn lemma_div_step(k: int, n: int) by (nonlinear_arith)
         requires n >= 1,
         ensures k/n - (k-1)/n == if k%n == 0 { 1int } else { 0 }
     {}
 
-    proof fn lemma_leap_correction(k: int)
-        ensures (k/4 - k/100 + k/400) - ((k-1)/4 - (k-1)/100 + (k-1)/400)
+    // Leap year correction step: leap_correction(k) - leap_correction(k-1) == 1
+    //      iff leap(2000+k), else 0.
+    // This connects the from_ymd formula to dim(y, 2) for the Feb->Mar boundary.
+    proof fn lemma_leap_correction_step(k: int)
+        ensures leap_correction(k) - leap_correction(k-1)
              == if leap(k + 2000) { 1int } else { 0 }
     {
         lemma_div_step(k, 4);
         lemma_div_step(k, 100);
         lemma_div_step(k, 400);
-        // leap(k+2000) iff 4|k && (100∤k || 400|k), since 2000 ≡ 0 mod 400
-        // The three lemma_div_step results give:
-        //   contribution = [4|k] - [100|k] + [400|k]
-        // which equals 1 iff leap(k+2000), 0 otherwise.
+        // Rearrange the leap_correction difference into the three div_step differences
+        assert(leap_correction(k) - leap_correction(k-1)
+            == (k/4 - (k-1)/4) - (k/100 - (k-1)/100) + (k/400 - (k-1)/400)) by {};
     }
 
     // Going from the first day of (y,m) to the first day of the next month
@@ -122,9 +136,9 @@ verus! {
         // Case split: Feb->Mar crosses a from_ymd year boundary; all others are arithmetic
         if m == 2 {
             let k = y - 2000;
-            lemma_leap_correction(k);
+            lemma_leap_correction_step(k);
         } else {
-            // For all other months, years_elapsed is the same for (y,m) and (ny,nm)
+            // For all other months, years_since_epoch is the same for (y,m) and (ny,nm)
             // so the difference is purely from the (153*m_+2)/5 term = dim(y,m).
         }
     }
@@ -140,8 +154,8 @@ verus! {
         let Date(y, m, d) = date;
         if 1 <= d + n <= dim(y, m) {
             // ADD-DAYS: result = Date(y, m, d+n)
-            lemma_from_ymd_split(y, m, d);
-            lemma_from_ymd_split(y, m, d + n);
+            lemma_from_ymd_day_offset(y, m, d);
+            lemma_from_ymd_day_offset(y, m, d + n);
         } else if d + n > dim(y, m) {
             // ADD-DAYS-OVER: recurse on first-of-next-month with smaller n
             let n_ = n - (dim(y, m) - d) - 1;
@@ -149,14 +163,14 @@ verus! {
             assert(date.add_days(n) == next.add_days(n_));
             lemma_date_add_months_preserves_validity(Date(y, m, 1), 1);
             lemma_from_ymd_add_days(next, n_);
-            lemma_from_ymd_split(y, m, d);
+            lemma_from_ymd_day_offset(y, m, d);
             lemma_from_ymd_month_step(y, m);
         } else if d > 1 {
             // ADD-DAYS-UNDER1: shift to first-of-month, recurse with smaller |n|
             assert(date.add_days(n) == Date(y, m, 1).add_days(d - 1 + n));
             lemma_from_ymd_add_days(Date(y, m, 1), d - 1 + n);
-            lemma_from_ymd_split(y, m, d);
-            lemma_from_ymd_split(y, m, 1);
+            lemma_from_ymd_day_offset(y, m, d);
+            lemma_from_ymd_day_offset(y, m, 1);
         } else {
             // ADD-DAYS-UNDER2: d == 1, step back to previous month
             let Date(y_, m_, _) = date.add_months(-1);
@@ -168,8 +182,8 @@ verus! {
             // follows from lemma_from_ymd_month_step(y_, m_) since Date(y_, m_, 1).add_months(1) == date
             assert(Date(y_, m_, 1).add_months(1) == Date(y, m, 1));
             lemma_from_ymd_month_step(y_, m_);
-            lemma_from_ymd_split(y, m, 1);
-            lemma_from_ymd_split(y_, m_, 1);
+            lemma_from_ymd_day_offset(y, m, 1);
+            lemma_from_ymd_day_offset(y_, m_, 1);
         }
     }
 
@@ -189,8 +203,6 @@ verus! {
              >= EpochDelta::from_ymd(Date(y, m1, 1)).delta() + dim(y, m1),
         decreases m2 - m1,
     {
-        // month_step: from_ymd(Date(y, m1, 1).add_months(1)) = from_ymd(Date(y, m1, 1)) + dim(y, m1)
-        // For m1 < 12: Date(y, m1, 1).add_months(1) = Date(y, m1+1, 1)
         lemma_from_ymd_month_step(y, m1);
         assert(Date(y, m1, 1).add_months(1) == Date(y, m1 + 1, 1));
         if m2 > m1 + 1 {
@@ -205,8 +217,8 @@ verus! {
     {
         let Date(y1, m1, dd1) = d1;
         let Date(y2, m2, dd2) = d2;
-        lemma_from_ymd_split(y1, m1, dd1);
-        lemma_from_ymd_split(y2, m2, dd2);
+        lemma_from_ymd_day_offset(y1, m1, dd1);
+        lemma_from_ymd_day_offset(y2, m2, dd2);
         if y1 == y2 && m1 == m2 {
             // Same year and month: delta difference = dd2 - dd1 > 0
         } else if y1 == y2 {
@@ -216,7 +228,7 @@ verus! {
         } else {
             // y1 < y2: chain through year boundaries
             // from_ymd(Date(y1, 12, 31)) >= from_ymd(d1) since m1 <= 12, dd1 <= dim
-            lemma_from_ymd_split(y1, 12, 31);
+            lemma_from_ymd_day_offset(y1, 12, 31);
             if m1 < 12 {
                 lemma_from_ymd_first_of_month_increasing(y1, m1, 12);
             }
@@ -230,34 +242,22 @@ verus! {
                 lemma_from_ymd_cross_year_lower_bound(y1 + 1, y2);
             }
             // from_ymd(Date(y2, 1, 1)) <= from_ymd(Date(y2, m2, dd2))
-            lemma_from_ymd_split(y2, 1, 1);
+            lemma_from_ymd_day_offset(y2, 1, 1);
             if m2 > 1 {
                 lemma_from_ymd_first_of_month_increasing(y2, 1, m2);
             }
         }
     }
 
-    // One year has >= 365 days: from_ymd(Date(y+1, 1, 1)) >= from_ymd(Date(y, 1, 1)) + 365.
-    // Proof: directly from the from_ymd formula.
-    // from_ymd(Date(y+1, 1, 1)) - from_ymd(Date(y, 1, 1))
-    //   = 365 + (leap_correction(y-2000) - leap_correction(y-2001))
-    //   = 365 + (1 if leap(y) else 0)
-    //   >= 365
+    // One year has >= 365 days.
     proof fn lemma_from_ymd_one_year_step(y: int)
         ensures EpochDelta::from_ymd(Date(y + 1, 1, 1)).delta()
              >= EpochDelta::from_ymd(Date(y, 1, 1)).delta() + 365,
     {
-        // Both Jan 1 dates have month <= 2, so from_ymd uses years_elapsed = year - 1 - 2000
-        // and months_elapsed = 10, days_elapsed = 0.
-        // So delta(Date(y, 1, 1)) = 365*(y-2001) + lc(y-2001) + 306
-        // and delta(Date(y+1, 1, 1)) = 365*(y-2000) + lc(y-2000) + 306
-        // Difference = 365 + lc(y-2000) - lc(y-2001)
-        let k = y - 2000;
-        lemma_leap_correction(k);
-        // lc(k) - lc(k-1) = if leap(y) { 1 } else { 0 } >= 0
+        let k = years_since_epoch(y + 1, 1); // = y - 2000
+        lemma_leap_correction_step(k);
     }
 
-    // from_ymd(Date(y2, 1, 1)) >= from_ymd(Date(y1, 1, 1)) + 365 when y1 < y2
     proof fn lemma_from_ymd_cross_year_lower_bound(y1: int, y2: int)
         requires y1 < y2,
         ensures EpochDelta::from_ymd(Date(y2, 1, 1)).delta()
@@ -283,10 +283,10 @@ verus! {
         // d2 is valid since EPOCH is valid and add_days preserves validity
         lemma_date_add_days_preserves_validity(EPOCH, ed.delta());
         // d and d2 are both valid with from_ymd(d) == from_ymd(d2), so d == d2 by injectivity
-        theorem_congruent_iff_from_ymd(d, ed, d2, EpochDelta::from_ymd(d2));
+        theorem_congruent_preserves_comparison(d, ed, d2, EpochDelta::from_ymd(d2));
     }
 
-    pub proof fn theorem_congruent_iff_from_ymd(d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta)
+    pub proof fn theorem_congruent_preserves_comparison(d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta)
         requires d1.is_valid(), d2.is_valid(), congruent(d1, ed1), congruent(d2, ed2),
         ensures
             (d1.lt(d2) <==> ed1.lt(ed2)),
