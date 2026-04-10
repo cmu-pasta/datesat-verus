@@ -348,8 +348,7 @@ verus! {
         // Theorem 10: Hybrid congruent pairs preserve comparison
         assert forall|d1: Date, h1: Hybrid, d2: Date, h2: Hybrid| #![auto]
             d1.is_valid() && d2.is_valid()
-            && hybrid_congruent(d1, h1) && hybrid_congruent(d2, h2)
-            && (h1.ymd() || h1.epoch()) && (h2.ymd() || h2.epoch()) implies
+            && hybrid_congruent(d1, h1) && hybrid_congruent(d2, h2) implies
                 (h1.lt(h2) <==> d1.lt(d2)) && (h1.eq(h2) <==> d1 == d2)
             by { theorem_hybrid_congruent_preserves_comparison(d1, h1, d2, h2); }
 
