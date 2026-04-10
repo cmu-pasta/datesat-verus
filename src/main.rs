@@ -7,6 +7,9 @@ use monotonicity::*;
 mod epoch_delta;
 use epoch_delta::*;
 
+mod hybrid;
+use hybrid::*;
+
 verus! {
 
     pub struct Date(pub int, pub int, pub int);
