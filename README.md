@@ -1,6 +1,6 @@
 # DateSAT Verification
 
-This repository contains (work-in-progress) machine-checked proofs of formal semantics for DateSAT.
+This repository contains machine-checked proofs of formal semantics for DateSAT.
 
 First, [install Verus](https://github.com/verus-lang/verus/blob/main/INSTALL.md).
 
