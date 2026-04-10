@@ -128,4 +128,131 @@ verus! {
         && (h.epoch() ==> EpochDelta(h.delta()) == EpochDelta::from_ymd(d))
     }
 
+    // ── Hybrid congruence proofs ──────────────────────────────────────
+
+    // Lemma A: from_ymd constructs a congruent Hybrid.
+    pub proof fn lemma_hybrid_from_ymd_congruent(d: Date)
+        requires d.is_valid(),
+        ensures hybrid_congruent(d, Hybrid::from_ymd(d)),
+    {}
+
+    // Lemma B: from_epoch_delta constructs a congruent Hybrid.
+    pub proof fn lemma_hybrid_from_epoch_delta_congruent(ed: EpochDelta)
+        ensures hybrid_congruent(ed.to_ymd(), Hybrid::from_epoch_delta(ed)),
+    {
+        theorem_from_ymd_to_ymd_inverse(ed);
+    }
+
+    // Lemma C: A congruent Hybrid with a valid Date is itself valid,
+    // provided at least one representation flag is set.
+    pub proof fn lemma_hybrid_congruent_is_valid(d: Date, h: Hybrid)
+        requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
+        ensures h.is_valid(),
+    {}
+
+    // Lemma D: to_ymd recovers the congruent Date.
+    pub proof fn lemma_hybrid_to_ymd(d: Date, h: Hybrid)
+        requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
+        ensures h.to_ymd() == d,
+    {
+        if h.ymd() {
+            // Stored YMD matches d directly.
+        } else {
+            // epoch flag is set: EpochDelta(h.delta()) == from_ymd(d)
+            // h.to_ymd() = EpochDelta(h.delta()).to_ymd() = from_ymd(d).to_ymd() = d
+            theorem_to_ymd_from_ymd_inverse(d);
+        }
+    }
+
+    // Lemma E: to_epoch_delta recovers the congruent EpochDelta.
+    pub proof fn lemma_hybrid_to_epoch_delta(d: Date, h: Hybrid)
+        requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
+        ensures h.to_epoch_delta() == EpochDelta::from_ymd(d),
+    {
+        if h.epoch() {
+            // Stored delta matches from_ymd(d) directly.
+        } else {
+            // ymd flag is set: d == Date(h.year(), h.month(), h.day())
+            // h.to_epoch_delta() = from_ymd(Date(h.year(), h.month(), h.day())) = from_ymd(d)
+        }
+    }
+
+    // Theorem H5: Hybrid congruent pairs preserve comparison.
+    pub proof fn theorem_hybrid_congruent_preserves_comparison(
+        d1: Date, h1: Hybrid, d2: Date, h2: Hybrid,
+    )
+        requires
+            d1.is_valid(), d2.is_valid(),
+            hybrid_congruent(d1, h1), hybrid_congruent(d2, h2),
+            h1.ymd() || h1.epoch(), h2.ymd() || h2.epoch(),
+        ensures
+            (h1.lt(h2) <==> d1.lt(d2)),
+            (h1.eq(h2) <==> d1 == d2),
+    {
+        // Establish that accessors recover the right values.
+        lemma_hybrid_to_ymd(d1, h1);
+        lemma_hybrid_to_ymd(d2, h2);
+        lemma_hybrid_to_epoch_delta(d1, h1);
+        lemma_hybrid_to_epoch_delta(d2, h2);
+
+        // Now h1.to_ymd() == d1, h2.to_ymd() == d2,
+        //     h1.to_epoch_delta() == from_ymd(d1), h2.to_epoch_delta() == from_ymd(d2).
+
+        // For the epoch-delta branches, we need the EpochDelta congruence theorem.
+        let ed1 = EpochDelta::from_ymd(d1);
+        let ed2 = EpochDelta::from_ymd(d2);
+        theorem_congruent_preserves_comparison(d1, ed1, d2, ed2);
+
+        // All three branches of Hybrid::lt and Hybrid::eq now reduce to
+        // either Date or EpochDelta comparison, both of which agree with d1.lt(d2) / d1 == d2.
+    }
+
+    // Theorem H6: Hybrid congruence is preserved under period addition.
+    pub proof fn theorem_hybrid_congruent_add_period(d: Date, h: Hybrid, p: Period)
+        requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
+        ensures hybrid_congruent(d.add_period(p), h.add_period(p)),
+    {
+        let n = p.years() * 12 + p.months();
+        let days = p.days();
+
+        // Recover accessors.
+        lemma_hybrid_to_ymd(d, h);
+        lemma_hybrid_to_epoch_delta(d, h);
+        // Now: h.to_ymd() == d, h.to_epoch_delta() == from_ymd(d).
+
+        if p.years() == 0 && p.months() == 0 {
+            // Case 1: pure day addition.
+            // h.add_period(p) = Hybrid(0,0,0, h.to_epoch_delta().delta() + days, false, true)
+            // Need: EpochDelta(from_ymd(d).delta() + days) == from_ymd(d.add_period(p))
+            // d.add_period(p) = d.add_months(0).add_days(days) = d.add_days(days)
+            lemma_from_ymd_add_days(d, days);
+        } else if p.days() == 0 {
+            // Case 2: year/month only.
+            // h.add_period(p) = Hybrid(d'.year(), d'.month(), d'.day(), 0, true, false)
+            //   where d' = h.to_ymd().add_months(n) = d.add_months(n)
+            // d.add_period(p) = d.add_months(n).add_days(0) = d.add_months(n)
+            // Need: d.add_period(p) == d.add_months(n), which holds since add_days(0) is identity.
+            // The YMD flag is set and matches, so hybrid_congruent holds.
+        } else {
+            // Case 3: mixed year/month + days.
+            // h.add_period(p) = Hybrid(0,0,0, from_ymd(d.add_months(n)).delta() + days, false, true)
+            // d.add_period(p) = d.add_months(n).add_days(days)
+            // Need: EpochDelta(from_ymd(d.add_months(n)).delta() + days) == from_ymd(d.add_months(n).add_days(days))
+            lemma_date_add_months_preserves_validity(d, n);
+            lemma_from_ymd_add_days(d.add_months(n), days);
+        }
+    }
+
+    // Theorem H1: Hybrid validity is preserved under period addition (for congruent Hybrids).
+    pub proof fn theorem_hybrid_congruent_add_period_preserves_validity(d: Date, h: Hybrid, p: Period)
+        requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
+        ensures
+            hybrid_congruent(d.add_period(p), h.add_period(p)),
+            h.add_period(p).is_valid(),
+    {
+        theorem_hybrid_congruent_add_period(d, h, p);
+        theorem_date_add_period_preserves_validity(d, p);
+        lemma_hybrid_congruent_is_valid(d.add_period(p), h.add_period(p));
+    }
+
 } // verus!

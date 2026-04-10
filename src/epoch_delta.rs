@@ -145,7 +145,7 @@ verus! {
 
     // General lemma: adding n days (positive or negative) shifts from_ymd delta by n.
     // Induction mirrors add_days' own recursion (same decreases clause).
-    proof fn lemma_from_ymd_add_days(date: Date, n: int)
+    pub proof fn lemma_from_ymd_add_days(date: Date, n: int)
         requires date.is_valid(),
         ensures EpochDelta::from_ymd(date.add_days(n)).delta()
               == EpochDelta::from_ymd(date).delta() + n,
