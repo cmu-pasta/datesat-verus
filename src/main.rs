@@ -323,13 +323,13 @@ verus! {
             congruent(d, EpochDelta::from_ymd(d))
             by { theorem_epoch_delta_congruent_at_construction(d); }
 
-        // Theorem 6: Congruent pairs agree on ordering and equality
+        // Theorem 6: EpochDelta congruent pairs preserve comparison
         assert forall|d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta| #![auto]
             d1.is_valid() && d2.is_valid() && congruent(d1, ed1) && congruent(d2, ed2) implies
                 (d1.lt(d2) <==> ed1.lt(ed2)) && (d1 == d2 <==> ed1 == ed2)
             by { theorem_epoch_delta_congruent_preserves_comparison(d1, ed1, d2, ed2); }
 
-        // Theorem 7: Congruence is preserved under period addition
+        // Theorem 7: EpochDelta congruence preserved under period addition
         assert forall|d: Date, ed: EpochDelta, p: Period| #![auto]
             d.is_valid() && congruent(d, ed) implies
                 congruent(d.add_period(p), ed.add_period(p))
@@ -353,7 +353,7 @@ verus! {
                 (h1.lt(h2) <==> d1.lt(d2)) && (h1.eq(h2) <==> d1 == d2)
             by { theorem_hybrid_congruent_preserves_comparison(d1, h1, d2, h2); }
 
-        // Theorem 11: Hybrid congruence and validity preserved under period addition
+        // Theorem 11: Hybrid congruence preserved under period addition
         assert forall|d: Date, h: Hybrid, p: Period| #![auto]
             d.is_valid() && hybrid_congruent(d, h) implies
                 hybrid_congruent(d.add_period(p), h.add_period(p))
@@ -369,18 +369,18 @@ verus! {
             AlphaBeta::from_ymd(AlphaBeta::to_ymd(ab)) == ab
             by { theorem_ab_from_ymd_to_ymd_inverse(ab); }
 
-        // Theorem 13: AB inverse round-trip (to_ymd . from_ymd = id)
+        // Theorem 14: AB inverse round-trip (to_ymd . from_ymd = id)
         assert forall|d: Date| #![auto]
             d.is_valid() implies AlphaBeta::to_ymd(AlphaBeta::from_ymd(d)) == d
             by { theorem_ab_to_ymd_from_ymd_inverse(d); }
 
-        // Theorem 14: AB congruent pairs preserve comparison
+        // Theorem 15: AB congruent pairs preserve comparison
         assert forall|d1: Date, ab1: AlphaBeta, d2: Date, ab2: AlphaBeta| #![auto]
             d1.is_valid() && d2.is_valid() && ab_congruent(d1, ab1) && ab_congruent(d2, ab2) implies
                 (d1.lt(d2) <==> ab1.lt(ab2)) && (d1 == d2 <==> ab1 == ab2)
             by { theorem_ab_congruent_preserves_comparison(d1, ab1, d2, ab2); }
 
-        // Theorem 15: AB congruence preserved under period addition
+        // Theorem 16: AB congruence preserved under period addition
         assert forall|d: Date, ab: AlphaBeta, p: Period| #![auto]
             d.is_valid() && ab_congruent(d, ab) implies
                 ab_congruent(d.add_period(p), ab.add_period(p))
