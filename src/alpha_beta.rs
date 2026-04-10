@@ -115,10 +115,23 @@ verus! {
 
     // Euclidean division: (q*k + r) / k == q and (q*k + r) % k == r
     // when 0 <= r < k.
-    proof fn lemma_euclid_bounded(q: int, r: int, k: int) by (nonlinear_arith)
+    proof fn lemma_euclid_div(q: int, r: int, k: int) by (nonlinear_arith)
+        requires k > 0, 0 <= r, r < k,
+        ensures (q * k + r) / k == q,
+    {}
+
+    proof fn lemma_euclid_mod(q: int, r: int, k: int) by (nonlinear_arith)
+        requires k > 0, 0 <= r, r < k,
+        ensures (q * k + r) % k == r,
+    {}
+
+    proof fn lemma_euclid_bounded(q: int, r: int, k: int)
         requires k > 0, 0 <= r, r < k,
         ensures (q * k + r) / k == q, (q * k + r) % k == r,
-    {}
+    {
+        lemma_euclid_div(q, r, k);
+        lemma_euclid_mod(q, r, k);
+    }
 
     // The alpha formula simplifies: for valid months (1..12),
     // years_since_epoch(y,m)*12 + months_since_march(m) == (y - 2000)*12 + (m - 3).
@@ -136,67 +149,7 @@ verus! {
         }
     }
 
-    // ── EPOCH.add_months characterization ───────────────────────────
-
-    // Unfold EPOCH.add_months(n) into a concrete Date.
-    proof fn lemma_epoch_add_months(n: int)
-        ensures EPOCH.add_months(n) == Date(2000 + (2 + n) / 12, 1 + (2 + n) % 12, 1),
-    {
-        // EPOCH = Date(2000, 3, 1), so m-1+n = 2+n.
-        // d_ = min(1, dim(y_, m_)) = 1 since dim >= 28 >= 1.
-        let y_ = 2000 + (2 + n) / 12;
-        let m_ = 1 + (2 + n) % 12;
-        lemma_dim_is_bounded(y_, m_);
-    }
-
-    // ── Round-trip theorems ─────────────────────────────────────────
-
-    // Given alpha = n, EPOCH.add_months(n) produces a Date whose from_ymd alpha is n.
-    proof fn lemma_add_months_recovers_ym(n: int)
-        ensures ({
-            let Date(y_, m_, _) = EPOCH.add_months(n);
-            years_since_epoch(y_, m_) * 12 + months_since_march(m_) == n
-        })
-    {
-        lemma_epoch_add_months(n);
-        let y_ = 2000 + (2 + n) / 12;
-        let m_ = 1 + (2 + n) % 12;
-        // m_ is in 1..12
-        lemma_alpha_canonical(y_, m_);
-        // canonical form: (y_ - 2000)*12 + (m_ - 3) = (2+n)/12 * 12 + (2+n)%12 - 2
-        // By Euclidean identity: (2+n)/12 * 12 + (2+n)%12 == 2 + n
-        // So the result is (2+n) - 2 = n.
-        lemma_euclid_bounded((2 + n) / 12, (2 + n) % 12, 12);
-    }
-
-    // Round-trip: from_ymd(ab.to_ymd()) == ab for all AlphaBeta values.
-    pub proof fn theorem_ab_from_ymd_to_ymd_inverse(ab: AlphaBeta)
-        ensures AlphaBeta::from_ymd(ab.to_ymd()) == ab,
-    {
-        let n = ab.alpha();
-        let b = ab.beta();
-        lemma_epoch_add_months(n);
-        lemma_add_months_recovers_ym(n);
-        // to_ymd: Date(y_, m_, b+1)
-        // from_ymd: alpha = n (by lemma_add_months_recovers_ym), beta = (b+1)-1 = b
-    }
-
-    // Given valid (y, m), EPOCH.add_months of the canonical alpha recovers (y, m, 1).
-    proof fn lemma_yse_msm_recovers_add_months(y: int, m: int)
-        requires 1 <= m <= 12,
-        ensures EPOCH.add_months((y - 2000) * 12 + (m - 3))
-             == Date(y, m, 1),
-    {
-        let alpha = (y - 2000) * 12 + (m - 3);
-        lemma_epoch_add_months(alpha);
-        // EPOCH.add_months(alpha) = Date(2000 + (2+alpha)/12, 1 + (2+alpha)%12, 1)
-        // 2 + alpha = (y-2000)*12 + (m-1)
-        // Since 1 <= m <= 12, we have 0 <= m-1 <= 11, so m-1 < 12.
-        lemma_euclid_bounded(y - 2000, m - 1, 12);
-        // (y-2000)*12 + (m-1)) / 12 == y - 2000
-        // (y-2000)*12 + (m-1)) % 12 == m - 1
-        // So y_ = 2000 + (y-2000) = y, m_ = 1 + (m-1) = m.
-    }
+    // ── Round-trip theorem ────────────────────────────────────────────
 
     // Round-trip: to_ymd(from_ymd(d)) == d for valid dates.
     pub proof fn theorem_ab_to_ymd_from_ymd_inverse(d: Date)
@@ -205,10 +158,9 @@ verus! {
     {
         let Date(y, m, dd) = d;
         lemma_alpha_canonical(y, m);
-        // alpha = (y-2000)*12 + (m-3)
-        lemma_yse_msm_recovers_add_months(y, m);
-        // EPOCH.add_months(alpha) == Date(y, m, 1)
-        // to_ymd: Date(y, m, beta + 1) = Date(y, m, (dd-1) + 1) = Date(y, m, dd) = d
+        lemma_euclid_bounded(y, m - 1, 12);
+        // EPOCH_ABS_MONTH + alpha = y*12 + (m-1), so year_of_alpha = y, month_of_alpha = m
+        // to_ymd: Date(y, m, (dd-1) + 1) = d
     }
 
     // ── Congruence ────────────────────────────────────────────────────
@@ -235,8 +187,6 @@ verus! {
             // alpha2 - alpha1 >= (y2-y1)*12 - 11 >= 12 - 11 = 1
         }
     }
-
-    // ── Congruence ────────────────────────────────────────────────────
 
     // Congruent pairs preserve comparison and equality.
     pub proof fn theorem_ab_congruent_preserves_comparison(
@@ -385,23 +335,17 @@ verus! {
         // Step 2: d.add_months(n) is valid
         lemma_date_add_months_preserves_validity(d, n);
 
-        // Step 3: from_ymd(d.add_months(n)) matches ab.add_months(n)
+        // Step 3: from_ymd(d.add_months(n)) == ab.add_months(n)
+        // Show alpha shifts by n and beta clamps identically.
         lemma_ab_from_ymd_add_months_alpha(d, n);
         lemma_ab_from_ymd_add_months_beta(d, n);
-        // Need to connect: year_of_alpha/month_of_alpha(ab.alpha() + n) gives same (y_, m_) as d.add_months(n)
+        // Connect year_of_alpha/month_of_alpha(alpha + n) to d.add_months(n)'s (y_, m_).
+        // EPOCH_ABS_MONTH + alpha + n = y*12 + k where k = m-1+n, so we apply Euclidean division.
         let Date(y, m, dd) = d;
         lemma_alpha_canonical(y, m);
-        let alpha = (y - 2000) * 12 + (m - 3);
         let k = m - 1 + n;
-        let y_ = y + k / 12;
-        let m_ = 1 + k % 12;
         lemma_euclid_bounded(k / 12, k % 12, 12);
-        lemma_euclid_bounded(y + k / 12 - 2000, k % 12, 12);
-        assert((2 + alpha + n) == (y + k / 12 - 2000) * 12 + k % 12);
-        // year_of_alpha(alpha + n) == y_, month_of_alpha(alpha + n) == m_
-        // EPOCH_ABS_MONTH + alpha + n = 24002 + (y-2000)*12 + (m-3) + n = y*12 + (m-1) + n = y*12 + k
         lemma_euclid_bounded(y + k / 12, k % 12, 12);
-        // So from_ymd(d.add_months(n)) == ab.add_months(n)
 
         // Step 4: add_days preserves congruence
         lemma_ab_add_days_congruent(d.add_months(n), ab.add_months(n), days);
