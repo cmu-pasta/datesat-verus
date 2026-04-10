@@ -95,6 +95,11 @@ verus! {
         ed == EpochDelta::from_ymd(d)
     }
 
+    // Congruence at construction: from_ymd(d) is congruent with d.
+    pub proof fn theorem_congruent_at_construction(d: Date)
+        ensures congruent(d, EpochDelta::from_ymd(d)),
+    {}
+
     // The from_ymd delta for any date = first-of-month value + (day - 1)
     proof fn lemma_from_ymd_day_offset(y: int, m: int, d: int)
         ensures EpochDelta::from_ymd(Date(y, m, d)).delta()

@@ -130,27 +130,27 @@ verus! {
 
     // ── Hybrid congruence proofs ──────────────────────────────────────
 
-    // Lemma A: from_ymd constructs a congruent Hybrid.
-    pub proof fn lemma_hybrid_from_ymd_congruent(d: Date)
+    // Hybrid congruence at construction: from_ymd produces a congruent Hybrid.
+    pub proof fn theorem_hybrid_from_ymd_congruent(d: Date)
         requires d.is_valid(),
         ensures hybrid_congruent(d, Hybrid::from_ymd(d)),
     {}
 
-    // Lemma B: from_epoch_delta constructs a congruent Hybrid.
-    pub proof fn lemma_hybrid_from_epoch_delta_congruent(ed: EpochDelta)
+    // Hybrid congruence at construction: from_epoch_delta produces a congruent Hybrid.
+    pub proof fn theorem_hybrid_from_epoch_delta_congruent(ed: EpochDelta)
         ensures hybrid_congruent(ed.to_ymd(), Hybrid::from_epoch_delta(ed)),
     {
         theorem_from_ymd_to_ymd_inverse(ed);
     }
 
-    // Lemma C: A congruent Hybrid with a valid Date is itself valid,
+    // A congruent Hybrid with a valid Date is itself valid,
     // provided at least one representation flag is set.
     pub proof fn lemma_hybrid_congruent_is_valid(d: Date, h: Hybrid)
         requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
         ensures h.is_valid(),
     {}
 
-    // Lemma D: to_ymd recovers the congruent Date.
+    // Hybrid::to_ymd recovers the congruent Date.
     pub proof fn lemma_hybrid_to_ymd(d: Date, h: Hybrid)
         requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
         ensures h.to_ymd() == d,
@@ -164,7 +164,7 @@ verus! {
         }
     }
 
-    // Lemma E: to_epoch_delta recovers the congruent EpochDelta.
+    // Hybrid::to_epoch_delta recovers the congruent EpochDelta.
     pub proof fn lemma_hybrid_to_epoch_delta(d: Date, h: Hybrid)
         requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
         ensures h.to_epoch_delta() == EpochDelta::from_ymd(d),
@@ -177,7 +177,7 @@ verus! {
         }
     }
 
-    // Theorem H5: Hybrid congruent pairs preserve comparison.
+    // Hybrid congruent pairs preserve comparison.
     pub proof fn theorem_hybrid_congruent_preserves_comparison(
         d1: Date, h1: Hybrid, d2: Date, h2: Hybrid,
     )
@@ -207,7 +207,7 @@ verus! {
         // either Date or EpochDelta comparison, both of which agree with d1.lt(d2) / d1 == d2.
     }
 
-    // Theorem H6: Hybrid congruence is preserved under period addition.
+    // Hybrid congruence is preserved under period addition.
     pub proof fn theorem_hybrid_congruent_add_period(d: Date, h: Hybrid, p: Period)
         requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
         ensures hybrid_congruent(d.add_period(p), h.add_period(p)),
@@ -243,7 +243,7 @@ verus! {
         }
     }
 
-    // Theorem H1: Hybrid validity is preserved under period addition (for congruent Hybrids).
+    // Hybrid validity is preserved under period addition (for congruent Hybrids).
     pub proof fn theorem_hybrid_congruent_add_period_preserves_validity(d: Date, h: Hybrid, p: Period)
         requires d.is_valid(), hybrid_congruent(d, h), h.ymd() || h.epoch(),
         ensures
