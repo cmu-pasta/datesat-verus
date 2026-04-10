@@ -15,8 +15,11 @@ use alpha_beta::*;
 
 verus! {
 
+    /// A calendar date in (year, month, day) form.
     pub struct Date(pub int, pub int, pub int);
 
+    /// The epoch: March 1, 2000. Chosen so that the leap day (Feb 29) falls
+    /// at the end of the epoch-year, simplifying the from_ymd formula.
     pub spec const EPOCH : Date = Date(2000, 3, 1);
 
     impl Date {
@@ -32,30 +35,37 @@ verus! {
             self.2
         }
 
+        /// Lexicographic strict ordering on dates: year, then month, then day.
         pub open spec fn lt(self, other: Self) -> bool {
             self.year() < other.year() ||
             (self.year() == other.year() && self.month() < other.month()) ||
             (self.year() == other.year() && self.month() == other.month() && self.day() < other.day())
         }
 
+        /// Non-strict ordering: less-than or equal.
         pub open spec fn leq(self, other: Self) -> bool {
             self.lt(other) || self == other
         }
 
+        /// A date is valid when its month is in 1..12 and its day is in 1..dim(year, month).
         pub open spec fn is_valid(self) -> bool {
             1 <= self.month() <= 12 && 1 <= self.day() <= dim(self.year(), self.month())
         }
 
     }
 
+    /// Whether a year is a leap year (Gregorian rule).
     pub open spec fn leap(year: int) -> bool {
         year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
     }
 
+    /// Days in month: the number of days in the given month of the given year.
     pub open spec fn dim(year: int, month: int) -> int {
         let calendar = [31, if leap(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
         calendar[month - 1]
     }
+
+    // ── Date and calendar proofs ──────────────────────────────────────
 
     pub proof fn lemma_dim_is_bounded(year: int, month: int)
         requires 1 <= month <= 12,
@@ -106,6 +116,9 @@ verus! {
         ensures d1 == d2 || d1.lt(d2) || d2.lt(d1)
     {}
 
+    // ── Period ────────────────────────────────────────────────────────
+
+    /// A calendar period expressed as (years, months, days).
     pub struct Period(pub int, pub int, pub int);
 
     impl Period {
@@ -120,11 +133,13 @@ verus! {
             self.2
         }
 
+        /// Component-wise addition of two periods.
         spec fn add(self, other: Self) -> Period {
             Period(self.years() + other.years(),
                 self.months() + other.months(), self.days() + other.days())
         }
 
+        /// Component-wise scaling of a period by an integer factor.
         spec fn scale(self, factor: int) -> Period {
             Period(self.years() * factor, self.months() * factor, self.days() * factor)
         }
@@ -150,7 +165,10 @@ verus! {
     proof fn lemma_period_scale_associative(p: Period, f1: int, f2: int) by (nonlinear_arith)
         ensures p.scale(f1).scale(f2) == p.scale(f1*f2) {}
 
+    // ── Date-period arithmetic ────────────────────────────────────────
+
     impl Date {
+        /// Add n months to a date, clamping the day to the new month's dim.
         pub open spec fn add_months(self, n: int) -> Date {
             let Date(y, m, d) = self;
             let y_ = y + (m - 1 + n) / 12;
@@ -159,6 +177,8 @@ verus! {
             Date(y_, m_, d_)
         }
 
+        /// Add n days to a date (positive or negative), recursively stepping
+        /// across month boundaries using the ADD-DAYS-OVER / ADD-DAYS-UNDER rules.
         pub open spec fn add_days(self, n: int) -> Date
             recommends self.is_valid(),
             decreases (n < 0) as nat, abs(n) // see note for ADD-DAYS-UNDER-2
@@ -197,11 +217,14 @@ verus! {
 
         }
 
+        /// Add a calendar period: first add years/months (as months), then add days.
         pub open spec fn add_period(self, period: Period) -> Date
         {
             self.add_months(period.years() * 12 + period.months()).add_days(period.days())
         }
     }
+
+    // ── Date-period arithmetic proofs ─────────────────────────────────
 
     pub proof fn lemma_date_add_months_preserves_validity(date: Date, n: int)
         requires date.is_valid(),
@@ -289,28 +312,28 @@ verus! {
 
         // Theorem 3: Round-trip conversion of Epoch-based representation
         assert forall|ed: EpochDelta| #![auto]
-            EpochDelta::from_ymd(EpochDelta::to_ymd(ed)) == ed by { theorem_from_ymd_to_ymd_inverse(ed); }
+            EpochDelta::from_ymd(EpochDelta::to_ymd(ed)) == ed by { theorem_epoch_delta_from_ymd_to_ymd_inverse(ed); }
 
         // Theorem 4: Inverse round-trip for valid dates
         assert forall|d: Date| #![auto]
-            d.is_valid() implies EpochDelta::to_ymd(EpochDelta::from_ymd(d)) == d by { theorem_to_ymd_from_ymd_inverse(d); }
+            d.is_valid() implies EpochDelta::to_ymd(EpochDelta::from_ymd(d)) == d by { theorem_epoch_delta_to_ymd_from_ymd_inverse(d); }
 
         // Theorem 5: EpochDelta congruence at construction
         assert forall|d: Date| #![auto]
             congruent(d, EpochDelta::from_ymd(d))
-            by { theorem_congruent_at_construction(d); }
+            by { theorem_epoch_delta_congruent_at_construction(d); }
 
         // Theorem 6: Congruent pairs agree on ordering and equality
         assert forall|d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta| #![auto]
             d1.is_valid() && d2.is_valid() && congruent(d1, ed1) && congruent(d2, ed2) implies
                 (d1.lt(d2) <==> ed1.lt(ed2)) && (d1 == d2 <==> ed1 == ed2)
-            by { theorem_congruent_preserves_comparison(d1, ed1, d2, ed2); }
+            by { theorem_epoch_delta_congruent_preserves_comparison(d1, ed1, d2, ed2); }
 
         // Theorem 7: Congruence is preserved under period addition
         assert forall|d: Date, ed: EpochDelta, p: Period| #![auto]
             d.is_valid() && congruent(d, ed) implies
                 congruent(d.add_period(p), ed.add_period(p))
-            by { theorem_congruent_add_period(d, ed, p); }
+            by { theorem_epoch_delta_add_period_preserves_congruence(d, ed, p); }
 
         // Theorem 8: Hybrid congruence at construction (from_ymd)
         assert forall|d: Date| #![auto]
@@ -332,10 +355,9 @@ verus! {
 
         // Theorem 11: Hybrid congruence and validity preserved under period addition
         assert forall|d: Date, h: Hybrid, p: Period| #![auto]
-            d.is_valid() && hybrid_congruent(d, h) && (h.ymd() || h.epoch()) implies
+            d.is_valid() && hybrid_congruent(d, h) implies
                 hybrid_congruent(d.add_period(p), h.add_period(p))
-                && h.add_period(p).is_valid()
-            by { theorem_hybrid_congruent_add_period_preserves_validity(d, h, p); }
+            by { theorem_hybrid_add_period_preserves_congruence(d, h, p); }
 
     }
 

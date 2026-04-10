@@ -11,19 +11,28 @@ verus! {
             self.0
         }
 
+        /// Strict ordering on epoch deltas: compares the underlying integer offsets.
         pub open spec fn lt(self, other: Self) -> bool {
             self.delta() < other.delta()
         }
 
+        /// Non-strict ordering on epoch deltas: compares the underlying integer offsets.
         pub open spec fn leq(self, other: Self) -> bool {
             self.delta() <= other.delta()
         }
 
+        /// Convert an epoch delta to a YMD date by adding delta days to the EPOCH.
         pub open spec fn to_ymd(self) -> Date
         {
             EPOCH.add_days(self.delta())
         }
 
+        /// Convert a YMD date to an epoch delta using a closed-form formula.
+        ///
+        /// The formula counts days from EPOCH (2000-03-01) in three parts:
+        ///   1. Days contributed by full years elapsed since the epoch.
+        ///   2. Days contributed by full months elapsed since March.
+        ///   3. Days elapsed within the current calendar month.
         pub open spec fn from_ymd(date: Date) -> EpochDelta
             recommends EPOCH == Date(2000, 3, 1) // the logic depends on the specific value of EPOCH
         {
@@ -48,38 +57,43 @@ verus! {
             EpochDelta(days_by_years + days_by_months + days_by_dim)
         }
 
+        /// Add n days to this epoch delta (simple integer addition).
         pub open spec fn add_days(self, n: int) -> EpochDelta {
             EpochDelta(self.delta() + n)
         }
 
+        /// Add n months by converting to YMD, applying add_months, and converting back.
         pub open spec fn add_months(self, n: int) -> EpochDelta {
             EpochDelta::from_ymd(self.to_ymd().add_months(n))
         }
 
+        /// Add a calendar period: first add years/months, then add days.
         pub open spec fn add_period(self, period: Period) -> EpochDelta {
             self.add_months(period.years() * 12 + period.months()).add_days(period.days())
         }
     }
 
-    // Helper spec functions for the from_ymd formula.
+    // ── Helper spec functions for the from_ymd formula ─────────────────
 
-    // Years elapsed since the epoch (March 1, 2000).
-    // Months Jan-Feb are counted as part of the previous year,
-    // so that the leap day (Feb 29) falls at the end of the epoch-year.
+    /// Years elapsed since the epoch (March 1, 2000).
+    /// Months Jan-Feb are counted as part of the previous year,
+    /// so that the leap day (Feb 29) falls at the end of the epoch-year.
     pub open spec fn years_since_epoch(y: int, m: int) -> int {
         (if m <= 2 { y - 1 } else { y }) - 2000
     }
 
-    // Months elapsed since March, where March = 0 .. February = 11.
+    /// Months elapsed since March, where March = 0 .. February = 11.
     pub open spec fn months_since_march(m: int) -> int {
         if m <= 2 { m + 9 } else { m - 3 }
     }
 
-    // Leap-year correction for k years: number of leap years in [1..k] relative to 2000.
-    // Since 2000 = 0 (mod 400), this is simply k/4 - k/100 + k/400.
+    /// Leap-year correction for k years: number of leap years in [1..k] relative to 2000.
+    /// Since 2000 = 0 (mod 400), this is simply k/4 - k/100 + k/400.
     pub open spec fn leap_correction(k: int) -> int {
         k/4 - k/100 + k/400
     }
+
+    // ── EpochDelta congruence proofs ───────────────────────────────────
 
     // The EPOCH is at delta = 0
     pub proof fn lemma_epoch_is_at_delta_zero() ensures
@@ -89,14 +103,14 @@ verus! {
     pub proof fn lemma_delta_zero_is_epoch() ensures
         EpochDelta::to_ymd(EpochDelta(0)) == EPOCH {}
 
-    // Congruence between Date and EpochDelta: asserts they are related by from_ymd.
-    // Whether this relation preserves comparison and arithmetic is proven below.
+    /// Congruence between Date and EpochDelta: asserts they are related by from_ymd.
+    /// Whether this relation preserves comparison and arithmetic is proven below.
     pub open spec fn congruent(d: Date, ed: EpochDelta) -> bool {
         ed == EpochDelta::from_ymd(d)
     }
 
     // Congruence at construction: from_ymd(d) is congruent with d.
-    pub proof fn theorem_congruent_at_construction(d: Date)
+    pub proof fn theorem_epoch_delta_congruent_at_construction(d: Date)
         ensures congruent(d, EpochDelta::from_ymd(d)),
     {}
 
@@ -194,7 +208,7 @@ verus! {
 
 
     // Round-trip conversion: from_ymd(ed.to_ymd()) == ed for all ed
-    pub proof fn theorem_from_ymd_to_ymd_inverse(ed: EpochDelta)
+    pub proof fn theorem_epoch_delta_from_ymd_to_ymd_inverse(ed: EpochDelta)
         ensures EpochDelta::from_ymd(ed.to_ymd()) == ed
     {
         lemma_epoch_is_at_delta_zero();
@@ -277,21 +291,21 @@ verus! {
 
     // The other round-trip: to_ymd(from_ymd(d)) == d for valid dates.
     // Follows from the first round-trip + injectivity of from_ymd.
-    pub proof fn theorem_to_ymd_from_ymd_inverse(d: Date)
+    pub proof fn theorem_epoch_delta_to_ymd_from_ymd_inverse(d: Date)
         requires d.is_valid(),
         ensures EpochDelta::to_ymd(EpochDelta::from_ymd(d)) == d,
     {
         let ed = EpochDelta::from_ymd(d);
         let d2 = ed.to_ymd(); // = EPOCH.add_days(from_ymd(d).delta())
         // from_ymd(to_ymd(ed)) == ed, so from_ymd(d2) == from_ymd(d)
-        theorem_from_ymd_to_ymd_inverse(ed);
+        theorem_epoch_delta_from_ymd_to_ymd_inverse(ed);
         // d2 is valid since EPOCH is valid and add_days preserves validity
         lemma_date_add_days_preserves_validity(EPOCH, ed.delta());
         // d and d2 are both valid with from_ymd(d) == from_ymd(d2), so d == d2 by injectivity
-        theorem_congruent_preserves_comparison(d, ed, d2, EpochDelta::from_ymd(d2));
+        theorem_epoch_delta_congruent_preserves_comparison(d, ed, d2, EpochDelta::from_ymd(d2));
     }
 
-    pub proof fn theorem_congruent_preserves_comparison(d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta)
+    pub proof fn theorem_epoch_delta_congruent_preserves_comparison(d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta)
         requires d1.is_valid(), d2.is_valid(), congruent(d1, ed1), congruent(d2, ed2),
         ensures
             (d1.lt(d2) <==> ed1.lt(ed2)),
@@ -313,7 +327,7 @@ verus! {
     }
 
     // Congruence is preserved under period addition.
-    pub proof fn theorem_congruent_add_period(d: Date, ed: EpochDelta, p: Period)
+    pub proof fn theorem_epoch_delta_add_period_preserves_congruence(d: Date, ed: EpochDelta, p: Period)
         requires d.is_valid(), congruent(d, ed),
         ensures congruent(d.add_period(p), ed.add_period(p)),
     {
@@ -323,7 +337,7 @@ verus! {
         let days = p.days();
 
         // Step 1: d == ed.to_ymd() (the other round-trip)
-        theorem_to_ymd_from_ymd_inverse(d);
+        theorem_epoch_delta_to_ymd_from_ymd_inverse(d);
         assert(d == ed.to_ymd());
 
         // Step 2: d.add_months(n) is valid
