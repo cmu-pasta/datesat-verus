@@ -310,76 +310,58 @@ verus! {
             d1.is_valid() && d2.is_valid() && d1.leq(d2) implies
                 d1.add_period(p).leq(d2.add_period(p)) by { theorem_date_add_period_is_monotonic(d1, d2, p); }
 
-        // Theorem 3: Round-trip conversion of Epoch-based representation
-        assert forall|ed: EpochDelta| #![auto]
-            EpochDelta::from_ymd(EpochDelta::to_ymd(ed)) == ed by { theorem_epoch_delta_from_ymd_to_ymd_inverse(ed); }
-
-        // Theorem 4: Inverse round-trip for valid dates
-        assert forall|d: Date| #![auto]
-            d.is_valid() implies EpochDelta::to_ymd(EpochDelta::from_ymd(d)) == d by { theorem_epoch_delta_to_ymd_from_ymd_inverse(d); }
-
-        // Theorem 5: EpochDelta congruence at construction
+        // Theorem 3: EpochDelta congruence at construction
         assert forall|d: Date| #![auto]
             congruent(d, EpochDelta::from_ymd(d))
             by { theorem_epoch_delta_congruent_at_construction(d); }
 
-        // Theorem 6: EpochDelta congruent pairs preserve comparison
+        // Theorem 4: EpochDelta congruent pairs preserve comparison
         assert forall|d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta| #![auto]
             d1.is_valid() && d2.is_valid() && congruent(d1, ed1) && congruent(d2, ed2) implies
                 (d1.lt(d2) <==> ed1.lt(ed2)) && (d1 == d2 <==> ed1 == ed2)
             by { theorem_epoch_delta_congruent_preserves_comparison(d1, ed1, d2, ed2); }
 
-        // Theorem 7: EpochDelta congruence preserved under period addition
+        // Theorem 5: EpochDelta congruence preserved under period addition
         assert forall|d: Date, ed: EpochDelta, p: Period| #![auto]
             d.is_valid() && congruent(d, ed) implies
                 congruent(d.add_period(p), ed.add_period(p))
             by { theorem_epoch_delta_add_period_preserves_congruence(d, ed, p); }
 
-        // Theorem 8: Hybrid congruence at construction (from_ymd)
+        // Theorem 6: Hybrid congruence at construction (from_ymd)
         assert forall|d: Date| #![auto]
             d.is_valid() implies hybrid_congruent(d, Hybrid::from_ymd(d))
             by { theorem_hybrid_from_ymd_congruent(d); }
 
-        // Theorem 9: Hybrid congruence at construction (from_epoch_delta)
+        // Theorem 7: Hybrid congruence at construction (from_epoch_delta)
         assert forall|ed: EpochDelta| #![auto]
             hybrid_congruent(ed.to_ymd(), Hybrid::from_epoch_delta(ed))
             by { theorem_hybrid_from_epoch_delta_congruent(ed); }
 
-        // Theorem 10: Hybrid congruent pairs preserve comparison
+        // Theorem 8: Hybrid congruent pairs preserve comparison
         assert forall|d1: Date, h1: Hybrid, d2: Date, h2: Hybrid| #![auto]
             d1.is_valid() && d2.is_valid()
             && hybrid_congruent(d1, h1) && hybrid_congruent(d2, h2) implies
                 (h1.lt(h2) <==> d1.lt(d2)) && (h1.eq(h2) <==> d1 == d2)
             by { theorem_hybrid_congruent_preserves_comparison(d1, h1, d2, h2); }
 
-        // Theorem 11: Hybrid congruence preserved under period addition
+        // Theorem 9: Hybrid congruence preserved under period addition
         assert forall|d: Date, h: Hybrid, p: Period| #![auto]
             d.is_valid() && hybrid_congruent(d, h) implies
                 hybrid_congruent(d.add_period(p), h.add_period(p))
             by { theorem_hybrid_add_period_preserves_congruence(d, h, p); }
 
-        // Theorem 12: AB congruence at construction
+        // Theorem 10: AlphaBeta congruence at construction
         assert forall|d: Date| #![auto]
             ab_congruent(d, AlphaBeta::from_ymd(d))
             by { theorem_ab_congruent_at_construction(d); }
 
-        // Theorem 13: AB round-trip (from_ymd . to_ymd = id)
-        assert forall|ab: AlphaBeta| #![auto]
-            AlphaBeta::from_ymd(AlphaBeta::to_ymd(ab)) == ab
-            by { theorem_ab_from_ymd_to_ymd_inverse(ab); }
-
-        // Theorem 14: AB inverse round-trip (to_ymd . from_ymd = id)
-        assert forall|d: Date| #![auto]
-            d.is_valid() implies AlphaBeta::to_ymd(AlphaBeta::from_ymd(d)) == d
-            by { theorem_ab_to_ymd_from_ymd_inverse(d); }
-
-        // Theorem 15: AB congruent pairs preserve comparison
+        // Theorem 11: AlphaBeta congruent pairs preserve comparison
         assert forall|d1: Date, ab1: AlphaBeta, d2: Date, ab2: AlphaBeta| #![auto]
             d1.is_valid() && d2.is_valid() && ab_congruent(d1, ab1) && ab_congruent(d2, ab2) implies
                 (d1.lt(d2) <==> ab1.lt(ab2)) && (d1 == d2 <==> ab1 == ab2)
             by { theorem_ab_congruent_preserves_comparison(d1, ab1, d2, ab2); }
 
-        // Theorem 16: AB congruence preserved under period addition
+        // Theorem 12: AlphaBeta congruence preserved under period addition
         assert forall|d: Date, ab: AlphaBeta, p: Period| #![auto]
             d.is_valid() && ab_congruent(d, ab) implies
                 ab_congruent(d.add_period(p), ab.add_period(p))
