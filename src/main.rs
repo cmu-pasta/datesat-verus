@@ -19,6 +19,9 @@ use hybrid::*;
 mod alpha_beta;
 use alpha_beta::*;
 
+mod datesat;
+use datesat::*;
+
 verus! {
 
     /// Trait for date encodings that support construction from YMD,
