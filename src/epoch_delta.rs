@@ -140,13 +140,13 @@ verus! {
 
     /// Congruence between SimpleDate and EpochDelta: asserts they are related by from_ymd.
     /// Whether this relation preserves comparison and arithmetic is proven below.
-    pub open spec fn congruent(d: SimpleDate, ed: EpochDelta) -> bool {
+    pub open spec fn ed_congruent(d: SimpleDate, ed: EpochDelta) -> bool {
         ed == EpochDelta::from_ymd(d.year(), d.month(), d.day())
     }
 
     // Congruence at construction: from_ymd is congruent with SimpleDate.
     pub proof fn theorem_epoch_delta_from_ymd_congruent(y: int, m: int, d: int)
-        ensures congruent(SimpleDate(y, m, d), EpochDelta::from_ymd(y, m, d)),
+        ensures ed_congruent(SimpleDate(y, m, d), EpochDelta::from_ymd(y, m, d)),
     {}
 
     // The from_simple_date delta for any date = first-of-month value + (day - 1)
@@ -343,7 +343,7 @@ verus! {
     }
 
     pub proof fn theorem_epoch_delta_congruent_preserves_comparison(d1: SimpleDate, ed1: EpochDelta, d2: SimpleDate, ed2: EpochDelta)
-        requires d1.is_valid(), d2.is_valid(), congruent(d1, ed1), congruent(d2, ed2),
+        requires d1.is_valid(), d2.is_valid(), ed_congruent(d1, ed1), ed_congruent(d2, ed2),
         ensures
             (d1.lt(d2) <==> ed1.lt(ed2)),
             (d1.eq(d2)  <==> ed1.eq(ed2)),
@@ -365,8 +365,8 @@ verus! {
 
     // Congruence is preserved under period addition.
     pub proof fn theorem_epoch_delta_add_period_preserves_congruence(d: SimpleDate, ed: EpochDelta, p: Period)
-        requires d.is_valid(), congruent(d, ed),
-        ensures congruent(d.add_period(p), ed.add_period(p)),
+        requires d.is_valid(), ed_congruent(d, ed),
+        ensures ed_congruent(d.add_period(p), ed.add_period(p)),
     {
         // ed == from_simple_date(d) by definition of congruent.
         // Goal: from_simple_date(d.add_period(p)) == ed.add_period(p).

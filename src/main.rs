@@ -52,19 +52,19 @@ verus! {
 
         // Theorem 3: EpochDelta congruence at construction
         assert forall|y: int, m: int, d: int| #![auto]
-            congruent(SimpleDate(y, m, d), EpochDelta::from_ymd(y, m, d))
+            ed_congruent(SimpleDate(y, m, d), EpochDelta::from_ymd(y, m, d))
             by { theorem_epoch_delta_from_ymd_congruent(y, m, d); }
 
         // Theorem 4: EpochDelta congruent pairs preserve comparison
         assert forall|d1: SimpleDate, ed1: EpochDelta, d2: SimpleDate, ed2: EpochDelta| #![auto]
-            d1.is_valid() && d2.is_valid() && congruent(d1, ed1) && congruent(d2, ed2) implies
+            d1.is_valid() && d2.is_valid() && ed_congruent(d1, ed1) && ed_congruent(d2, ed2) implies
                 (d1.lt(d2) <==> ed1.lt(ed2)) && (d1.eq(d2) <==> ed1.eq(ed2))
             by { theorem_epoch_delta_congruent_preserves_comparison(d1, ed1, d2, ed2); }
 
         // Theorem 5: EpochDelta congruence preserved under period addition
         assert forall|d: SimpleDate, ed: EpochDelta, p: Period| #![auto]
-            d.is_valid() && congruent(d, ed) implies
-                congruent(d.add_period(p), ed.add_period(p))
+            d.is_valid() && ed_congruent(d, ed) implies
+                ed_congruent(d.add_period(p), ed.add_period(p))
             by { theorem_epoch_delta_add_period_preserves_congruence(d, ed, p); }
 
         // Theorem 6: Hybrid congruence at construction (from_ymd)
