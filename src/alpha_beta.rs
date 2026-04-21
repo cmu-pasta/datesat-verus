@@ -121,6 +121,18 @@ verus! {
             AlphaBeta::from_simple_date(SimpleDate(y, m, d))
         }
 
+        open spec fn year(self) -> int {
+            year_of_alpha(self.alpha())
+        }
+
+        open spec fn month(self) -> int {
+            month_of_alpha(self.alpha())
+        }
+
+        open spec fn day(self) -> int {
+            self.beta() + 1
+        }
+
         open spec fn lt(self, other: Self) -> bool {
             self.lt(other)
         }

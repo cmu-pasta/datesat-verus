@@ -9,15 +9,15 @@ verus! {
     pub struct SimpleDate(pub int, pub int, pub int);
 
     impl SimpleDate {
-        pub open spec fn year(&self) -> int {
+        pub open spec fn year(self) -> int {
             self.0
         }
 
-        pub open spec fn month(&self) -> int {
+        pub open spec fn month(self) -> int {
             self.1
         }
 
-        pub open spec fn day(&self) -> int {
+        pub open spec fn day(self) -> int {
             self.2
         }
 
@@ -48,6 +48,18 @@ verus! {
     impl DateEncoding for SimpleDate {
         open spec fn from_ymd(y: int, m: int, d: int) -> SimpleDate {
             SimpleDate(y, m, d)
+        }
+
+        open spec fn year(self) -> int {
+            self.year()
+        }
+
+        open spec fn month(self) -> int {
+            self.month()
+        }
+
+        open spec fn day(self) -> int {
+            self.day()
         }
 
         open spec fn lt(self, other: Self) -> bool {

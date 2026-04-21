@@ -83,6 +83,18 @@ verus! {
             EpochDelta::from_simple_date(SimpleDate(y, m, d))
         }
 
+        open spec fn year(self) -> int {
+            self.to_ymd().year()
+        }
+
+        open spec fn month(self) -> int {
+            self.to_ymd().month()
+        }
+
+        open spec fn day(self) -> int {
+            self.to_ymd().day()
+        }
+
         open spec fn lt(self, other: Self) -> bool {
             self.lt(other)
         }

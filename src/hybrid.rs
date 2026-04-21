@@ -13,9 +13,9 @@ verus! {
     pub struct Hybrid(pub int, pub int, pub int, pub int, pub bool, pub bool);
 
     impl Hybrid {
-        pub open spec fn year(&self) -> int { self.0 }
-        pub open spec fn month(&self) -> int { self.1 }
-        pub open spec fn day(&self) -> int { self.2 }
+        pub open spec fn _year(&self) -> int { self.0 }
+        pub open spec fn _month(&self) -> int { self.1 }
+        pub open spec fn _day(&self) -> int { self.2 }
         pub open spec fn delta(&self) -> int { self.3 }
         pub open spec fn ymd(&self) -> bool { self.4 }
         pub open spec fn epoch(&self) -> bool { self.5 }
@@ -26,7 +26,7 @@ verus! {
         /// (Consistency between the two representations is a separate concern.)
         pub open spec fn is_valid(self) -> bool {
             (self.ymd() || self.epoch())
-            && (self.ymd() ==> SimpleDate(self.year(), self.month(), self.day()).is_valid())
+            && (self.ymd() ==> SimpleDate(self._year(), self._month(), self._day()).is_valid())
         }
 
         /// Construct a Hybrid from a YMD date (lazy: epoch delta is not computed).
@@ -44,7 +44,7 @@ verus! {
         /// from the epoch delta.
         pub open spec fn to_ymd(self) -> SimpleDate {
             if self.ymd() {
-                SimpleDate(self.year(), self.month(), self.day())
+                SimpleDate(self._year(), self._month(), self._day())
             } else {
                 EpochDelta(self.delta()).to_ymd()
             }
@@ -57,7 +57,7 @@ verus! {
             if self.epoch() {
                 EpochDelta(self.delta())
             } else {
-                EpochDelta::from_simple_date(SimpleDate(self.year(), self.month(), self.day()))
+                EpochDelta::from_simple_date(SimpleDate(self._year(), self._month(), self._day()))
             }
         }
 
@@ -123,6 +123,18 @@ verus! {
     impl DateEncoding for Hybrid {
         open spec fn from_ymd(y: int, m: int, d: int) -> Hybrid {
             Hybrid::from_simple_date(SimpleDate(y, m, d))
+        }
+
+        open spec fn year(self) -> int {
+            if self.ymd() { self._year() } else { self.to_ymd().year() }
+        }
+
+        open spec fn month(self) -> int {
+            if self.ymd() { self._month() } else { self.to_ymd().month() }
+        }
+
+        open spec fn day(self) -> int {
+            if self.ymd() { self._day() } else { self.to_ymd().day() }
         }
 
         open spec fn lt(self, other: Self) -> bool {

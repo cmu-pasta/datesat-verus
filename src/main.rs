@@ -25,6 +25,9 @@ verus! {
     /// comparison, and period addition.
     pub trait DateEncoding: Sized {
         spec fn from_ymd(y: int, m: int, d: int) -> Self;
+        spec fn year(self) -> int;
+        spec fn month(self) -> int;
+        spec fn day(self) -> int;
         spec fn lt(self, other: Self) -> bool;
         spec fn eq(self, other: Self) -> bool;
         spec fn add_period(self, period: Period) -> Self;
