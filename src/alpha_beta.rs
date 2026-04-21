@@ -37,6 +37,11 @@ verus! {
             || (self.alpha() == other.alpha() && self.beta() < other.beta())
         }
 
+        /// Equality: component-wise comparison.
+        pub open spec fn eq(self, other: Self) -> bool {
+            self.alpha() == other.alpha() && self.beta() == other.beta()
+        }
+
         pub open spec fn leq(self, other: Self) -> bool {
             self.lt(other) || self == other
         }
@@ -196,7 +201,7 @@ verus! {
                  ab_congruent(d1, ab1), ab_congruent(d2, ab2),
         ensures
             (d1.lt(d2) <==> ab1.lt(ab2)),
-            (d1 == d2 <==> ab1 == ab2),
+            (d1.eq(d2) <==> ab1.eq(ab2)),
     {
         lemma_date_lt_is_total(d1, d2);
         if d1.lt(d2) {

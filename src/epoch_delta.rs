@@ -16,6 +16,11 @@ verus! {
             self.delta() < other.delta()
         }
 
+        /// Equality: compares the underlying integer offsets.
+        pub open spec fn eq(self, other: Self) -> bool {
+            self.delta() == other.delta()
+        }
+
         /// Non-strict ordering on epoch deltas: compares the underlying integer offsets.
         pub open spec fn leq(self, other: Self) -> bool {
             self.delta() <= other.delta()
@@ -134,11 +139,13 @@ verus! {
              == if leap(k + 2000) { 1int } else { 0 }
     {
         lemma_div_step(k, 4);
+        assert(k/4 - (k-1)/4 == if k%4 == 0 { 1int } else { 0 });
         lemma_div_step(k, 100);
+        assert(k/100 - (k-1)/100 == if k%100 == 0 { 1int } else { 0 });
         lemma_div_step(k, 400);
-        // Rearrange the leap_correction difference into the three div_step differences
+        assert(k/400 - (k-1)/400 == if k%400 == 0 { 1int } else { 0 });
         assert(leap_correction(k) - leap_correction(k-1)
-            == (k/4 - (k-1)/4) - (k/100 - (k-1)/100) + (k/400 - (k-1)/400)) by {};
+            == (k/4 - (k-1)/4) - (k/100 - (k-1)/100) + (k/400 - (k-1)/400));
     }
 
     // Going from the first day of (y,m) to the first day of the next month
@@ -309,7 +316,7 @@ verus! {
         requires d1.is_valid(), d2.is_valid(), congruent(d1, ed1), congruent(d2, ed2),
         ensures
             (d1.lt(d2) <==> ed1.lt(ed2)),
-            (d1 == d2   <==> ed1 == ed2),
+            (d1.eq(d2)  <==> ed1.eq(ed2)),
     {
         // ed1 == from_ymd(d1), ed2 == from_ymd(d2) by definition of congruent
         lemma_date_lt_is_total(d1, d2);

@@ -42,6 +42,11 @@ verus! {
             (self.year() == other.year() && self.month() == other.month() && self.day() < other.day())
         }
 
+        /// Equality: component-wise comparison.
+        pub open spec fn eq(self, other: Self) -> bool {
+            self.year() == other.year() && self.month() == other.month() && self.day() == other.day()
+        }
+
         /// Non-strict ordering: less-than or equal.
         pub open spec fn leq(self, other: Self) -> bool {
             self.lt(other) || self == other
@@ -318,7 +323,7 @@ verus! {
         // Theorem 4: EpochDelta congruent pairs preserve comparison
         assert forall|d1: Date, ed1: EpochDelta, d2: Date, ed2: EpochDelta| #![auto]
             d1.is_valid() && d2.is_valid() && congruent(d1, ed1) && congruent(d2, ed2) implies
-                (d1.lt(d2) <==> ed1.lt(ed2)) && (d1 == d2 <==> ed1 == ed2)
+                (d1.lt(d2) <==> ed1.lt(ed2)) && (d1.eq(d2) <==> ed1.eq(ed2))
             by { theorem_epoch_delta_congruent_preserves_comparison(d1, ed1, d2, ed2); }
 
         // Theorem 5: EpochDelta congruence preserved under period addition
@@ -341,7 +346,7 @@ verus! {
         assert forall|d1: Date, h1: Hybrid, d2: Date, h2: Hybrid| #![auto]
             d1.is_valid() && d2.is_valid()
             && hybrid_congruent(d1, h1) && hybrid_congruent(d2, h2) implies
-                (h1.lt(h2) <==> d1.lt(d2)) && (h1.eq(h2) <==> d1 == d2)
+                (h1.lt(h2) <==> d1.lt(d2)) && (h1.eq(h2) <==> d1.eq(d2))
             by { theorem_hybrid_congruent_preserves_comparison(d1, h1, d2, h2); }
 
         // Theorem 9: Hybrid congruence preserved under period addition
@@ -358,7 +363,7 @@ verus! {
         // Theorem 11: AlphaBeta congruent pairs preserve comparison
         assert forall|d1: Date, ab1: AlphaBeta, d2: Date, ab2: AlphaBeta| #![auto]
             d1.is_valid() && d2.is_valid() && ab_congruent(d1, ab1) && ab_congruent(d2, ab2) implies
-                (d1.lt(d2) <==> ab1.lt(ab2)) && (d1 == d2 <==> ab1 == ab2)
+                (d1.lt(d2) <==> ab1.lt(ab2)) && (d1.eq(d2) <==> ab1.eq(ab2))
             by { theorem_ab_congruent_preserves_comparison(d1, ab1, d2, ab2); }
 
         // Theorem 12: AlphaBeta congruence preserved under period addition

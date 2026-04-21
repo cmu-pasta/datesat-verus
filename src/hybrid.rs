@@ -182,7 +182,7 @@ verus! {
             h1.ymd() || h1.epoch(), h2.ymd() || h2.epoch(),
         ensures
             (h1.lt(h2) <==> d1.lt(d2)),
-            (h1.eq(h2) <==> d1 == d2),
+            (h1.eq(h2) <==> d1.eq(d2)),
     {
         // Establish that accessors recover the right values.
         lemma_hybrid_to_ymd(d1, h1);
