@@ -41,71 +41,32 @@ verus! {
     pub spec const EPOCH : SimpleDate = SimpleDate(2000, 3, 1);
 
     fn main() {
-        // Theorem 1: Well-formedness
+        // Theorem 1: Well-formedness of Date-{eriod Addition
         assert forall|d: SimpleDate, p: Period| #![auto]
             d.is_valid() implies d.add_period(p).is_valid() by { theorem_date_add_period_preserves_validity(d, p); }
 
-        // Theorem 2: Monotonicity of SimpleDate-Period Addition
+        // Theorem 2: Monotonicity of Date-Period Addition
         assert forall|d1: SimpleDate, d2: SimpleDate, p: Period| #![auto]
             d1.is_valid() && d2.is_valid() && d1.leq(d2) implies
                 d1.add_period(p).leq(d2.add_period(p)) by { theorem_date_add_period_is_monotonic(d1, d2, p); }
 
-        // Theorem 3: EpochDelta congruence at construction
-        assert forall|y: int, m: int, d: int| #![auto]
-            ed_congruent(SimpleDate(y, m, d), EpochDelta::from_ymd(y, m, d))
-            by { theorem_epoch_delta_from_ymd_congruent(y, m, d); }
+        // Theorem 3: EpochDelta equivalence
+        assert forall|ast: Ast, env: Environment| #![auto]
+            ast.is_well_formed(env) implies
+                ast.eval::<SimpleDate>(env) == ast.eval::<EpochDelta>(env)
+            by { theorem_ast_epoch_equiv(ast, env); }
 
-        // Theorem 4: EpochDelta congruent pairs preserve comparison
-        assert forall|d1: SimpleDate, ed1: EpochDelta, d2: SimpleDate, ed2: EpochDelta| #![auto]
-            d1.is_valid() && d2.is_valid() && ed_congruent(d1, ed1) && ed_congruent(d2, ed2) implies
-                (d1.lt(d2) <==> ed1.lt(ed2)) && (d1.eq(d2) <==> ed1.eq(ed2))
-            by { theorem_epoch_delta_congruent_preserves_comparison(d1, ed1, d2, ed2); }
+        // Theorem 4: Hybrid equivalence
+        assert forall|ast: Ast, env: Environment| #![auto]
+            ast.is_well_formed(env) implies
+                ast.eval::<SimpleDate>(env) == ast.eval::<Hybrid>(env)
+            by { theorem_ast_hybrid_equiv(ast, env); }
 
-        // Theorem 5: EpochDelta congruence preserved under period addition
-        assert forall|d: SimpleDate, ed: EpochDelta, p: Period| #![auto]
-            d.is_valid() && ed_congruent(d, ed) implies
-                ed_congruent(d.add_period(p), ed.add_period(p))
-            by { theorem_epoch_delta_add_period_preserves_congruence(d, ed, p); }
-
-        // Theorem 6: Hybrid congruence at construction (from_ymd)
-        assert forall|y: int, m: int, d: int| #![auto]
-            SimpleDate(y, m, d).is_valid() implies hybrid_congruent(SimpleDate(y, m, d), Hybrid::from_ymd(y, m, d))
-            by { theorem_hybrid_from_ymd_congruent(y, m, d); }
-
-        // Theorem 7: Hybrid congruence at construction (from_epoch_delta)
-        assert forall|ed: EpochDelta| #![auto]
-            hybrid_congruent(ed.to_ymd(), Hybrid::from_epoch_delta(ed))
-            by { theorem_hybrid_from_epoch_delta_congruent(ed); }
-
-        // Theorem 8: Hybrid congruent pairs preserve comparison
-        assert forall|d1: SimpleDate, h1: Hybrid, d2: SimpleDate, h2: Hybrid| #![auto]
-            d1.is_valid() && d2.is_valid()
-            && hybrid_congruent(d1, h1) && hybrid_congruent(d2, h2) implies
-                (h1.lt(h2) <==> d1.lt(d2)) && (h1.eq(h2) <==> d1.eq(d2))
-            by { theorem_hybrid_congruent_preserves_comparison(d1, h1, d2, h2); }
-
-        // Theorem 9: Hybrid congruence preserved under period addition
-        assert forall|d: SimpleDate, h: Hybrid, p: Period| #![auto]
-            d.is_valid() && hybrid_congruent(d, h) implies
-                hybrid_congruent(d.add_period(p), h.add_period(p))
-            by { theorem_hybrid_add_period_preserves_congruence(d, h, p); }
-
-        // Theorem 10: AlphaBeta congruence at construction
-        assert forall|y: int, m: int, d: int| #![auto]
-            ab_congruent(SimpleDate(y, m, d), AlphaBeta::from_ymd(y, m, d))
-            by { theorem_ab_from_ymd_congruent(y, m, d); }
-
-        // Theorem 11: AlphaBeta congruent pairs preserve comparison
-        assert forall|d1: SimpleDate, ab1: AlphaBeta, d2: SimpleDate, ab2: AlphaBeta| #![auto]
-            d1.is_valid() && d2.is_valid() && ab_congruent(d1, ab1) && ab_congruent(d2, ab2) implies
-                (d1.lt(d2) <==> ab1.lt(ab2)) && (d1.eq(d2) <==> ab1.eq(ab2))
-            by { theorem_ab_congruent_preserves_comparison(d1, ab1, d2, ab2); }
-
-        // Theorem 12: AlphaBeta congruence preserved under period addition
-        assert forall|d: SimpleDate, ab: AlphaBeta, p: Period| #![auto]
-            d.is_valid() && ab_congruent(d, ab) implies
-                ab_congruent(d.add_period(p), ab.add_period(p))
-            by { theorem_ab_congruent_add_period(d, ab, p); }
+        // Theorem 5: AlphaBeta equivalence
+        assert forall|ast: Ast, env: Environment| #![auto]
+            ast.is_well_formed(env) implies
+                ast.eval::<SimpleDate>(env) == ast.eval::<AlphaBeta>(env)
+            by { theorem_ast_ab_equiv(ast, env); }
 
     }
 

@@ -52,6 +52,10 @@ verus! {
         pub open spec fn eval<D: DateEncoding>(self, env: Environment) -> bool {
             self.root.eval::<D>(env)
         }
+
+        pub open spec fn is_well_formed(self, env: Environment) -> bool {
+            self.root.is_well_formed(env)
+        }
     }
 
     impl IntExpr {
@@ -113,42 +117,42 @@ verus! {
     // ── Well-formedness ────────────────────────────────────────────────
 
     impl DateExpr {
-        pub open spec fn is_wf(self, env: Environment) -> bool
+        pub open spec fn is_well_formed(self, env: Environment) -> bool
             decreases self,
         {
             match self {
                 DateExpr::Literal(y, m, d) => SimpleDate(y, m, d).is_valid(),
                 DateExpr::Var(id) => env.date_var_valid(id),
-                DateExpr::Add(base, _) => base.is_wf(env),
+                DateExpr::Add(base, _) => base.is_well_formed(env),
             }
         }
     }
 
     impl IntExpr {
-        pub open spec fn is_wf(self, env: Environment) -> bool
+        pub open spec fn is_well_formed(self, env: Environment) -> bool
             decreases self,
         {
             match self {
                 IntExpr::Literal(_) => true,
                 IntExpr::Var(id) => env.int_vars.dom().contains(id),
-                IntExpr::Year(d) => d.is_wf(env),
-                IntExpr::Month(d) => d.is_wf(env),
-                IntExpr::Day(d) => d.is_wf(env),
+                IntExpr::Year(d) => d.is_well_formed(env),
+                IntExpr::Month(d) => d.is_well_formed(env),
+                IntExpr::Day(d) => d.is_well_formed(env),
             }
         }
     }
 
     impl BoolExpr {
-        pub open spec fn is_wf(self, env: Environment) -> bool
+        pub open spec fn is_well_formed(self, env: Environment) -> bool
             decreases self,
         {
             match self {
-                BoolExpr::And(a, b) => a.is_wf(env) && b.is_wf(env),
-                BoolExpr::Or(a, b) => a.is_wf(env) && b.is_wf(env),
-                BoolExpr::Not(a) => a.is_wf(env),
+                BoolExpr::And(a, b) => a.is_well_formed(env) && b.is_well_formed(env),
+                BoolExpr::Or(a, b) => a.is_well_formed(env) && b.is_well_formed(env),
+                BoolExpr::Not(a) => a.is_well_formed(env),
                 BoolExpr::Literal(_) => true,
-                BoolExpr::DateLt(a, b) => a.is_wf(env) && b.is_wf(env),
-                BoolExpr::DateEq(a, b) => a.is_wf(env) && b.is_wf(env),
+                BoolExpr::DateLt(a, b) => a.is_well_formed(env) && b.is_well_formed(env),
+                BoolExpr::DateEq(a, b) => a.is_well_formed(env) && b.is_well_formed(env),
             }
         }
     }
@@ -156,7 +160,7 @@ verus! {
     // ── EpochDelta equivalence proofs ───────────────────────────────────
 
     pub proof fn lemma_date_wf_implies_valid(e: DateExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures e.eval::<SimpleDate>(env).is_valid(),
         decreases e,
     {
@@ -174,7 +178,7 @@ verus! {
     }
 
     pub proof fn lemma_date_expr_ed_congruent(e: DateExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures ed_congruent(e.eval::<SimpleDate>(env), e.eval::<EpochDelta>(env)),
         decreases e,
     {
@@ -199,7 +203,7 @@ verus! {
     }
 
     pub proof fn lemma_int_expr_equiv(e: IntExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures e.eval::<SimpleDate>(env) == e.eval::<EpochDelta>(env),
         decreases e,
     {
@@ -229,7 +233,7 @@ verus! {
 
 
     pub proof fn lemma_bool_expr_equiv(e: BoolExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures e.eval::<SimpleDate>(env) == e.eval::<EpochDelta>(env),
         decreases e,
     {
@@ -275,7 +279,7 @@ verus! {
 
 
     pub proof fn theorem_ast_epoch_equiv(ast: Ast, env: Environment)
-        requires ast.root.is_wf(env),
+        requires ast.is_well_formed(env),
         ensures ast.eval::<SimpleDate>(env) == ast.eval::<EpochDelta>(env),
     {
         lemma_bool_expr_equiv(ast.root, env);
@@ -285,7 +289,7 @@ verus! {
     // ── Hybrid equivalence proofs ──────────────────────────────────────
 
     pub proof fn lemma_date_expr_hybrid_congruent(e: DateExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures hybrid_congruent(e.eval::<SimpleDate>(env), e.eval::<Hybrid>(env)),
         decreases e,
     {
@@ -310,7 +314,7 @@ verus! {
     }
 
     pub proof fn lemma_int_expr_hybrid_equiv(e: IntExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures e.eval::<SimpleDate>(env) == e.eval::<Hybrid>(env),
         decreases e,
     {
@@ -342,7 +346,7 @@ verus! {
     }
 
     pub proof fn lemma_bool_expr_hybrid_equiv(e: BoolExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures e.eval::<SimpleDate>(env) == e.eval::<Hybrid>(env),
         decreases e,
     {
@@ -387,7 +391,7 @@ verus! {
     }
 
     pub proof fn theorem_ast_hybrid_equiv(ast: Ast, env: Environment)
-        requires ast.root.is_wf(env),
+        requires ast.is_well_formed(env),
         ensures ast.eval::<SimpleDate>(env) == ast.eval::<Hybrid>(env),
     {
         lemma_bool_expr_hybrid_equiv(ast.root, env);
@@ -397,7 +401,7 @@ verus! {
     // ── AlphaBeta equivalence proofs ───────────────────────────────────
 
     pub proof fn lemma_date_expr_ab_congruent(e: DateExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures ab_congruent(e.eval::<SimpleDate>(env), e.eval::<AlphaBeta>(env)),
         decreases e,
     {
@@ -422,7 +426,7 @@ verus! {
     }
 
     pub proof fn lemma_int_expr_ab_equiv(e: IntExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures e.eval::<SimpleDate>(env) == e.eval::<AlphaBeta>(env),
         decreases e,
     {
@@ -451,7 +455,7 @@ verus! {
     }
 
     pub proof fn lemma_bool_expr_ab_equiv(e: BoolExpr, env: Environment)
-        requires e.is_wf(env),
+        requires e.is_well_formed(env),
         ensures e.eval::<SimpleDate>(env) == e.eval::<AlphaBeta>(env),
         decreases e,
     {
@@ -496,7 +500,7 @@ verus! {
     }
 
     pub proof fn theorem_ast_ab_equiv(ast: Ast, env: Environment)
-        requires ast.root.is_wf(env),
+        requires ast.is_well_formed(env),
         ensures ast.eval::<SimpleDate>(env) == ast.eval::<AlphaBeta>(env),
     {
         lemma_bool_expr_ab_equiv(ast.root, env);
