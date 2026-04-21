@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+use vstd::map::*;
 use crate::*;
 
 verus! {
@@ -19,6 +20,7 @@ verus! {
 
     pub enum IntExpr {
         Literal(int),
+        Var(int),
         Year(Box<DateExpr>),
         Month(Box<DateExpr>),
         Day(Box<DateExpr>),
@@ -26,6 +28,7 @@ verus! {
 
     pub enum DateExpr {
         Literal(Box<IntExpr>, Box<IntExpr>, Box<IntExpr>),
+        Var(int),
         Add(Box<DateExpr>, PeriodLiteral),
     }
 
@@ -37,7 +40,16 @@ verus! {
         }
     }
 
-    pub struct Environment;
+    pub struct Environment {
+        pub int_vars: Map<int, int>,
+        pub date_vars: Map<int, SimpleDate>,
+    }
+
+    impl Environment {
+        pub open spec fn date_var_valid(self, id: int) -> bool {
+            self.date_vars.dom().contains(id) && self.date_vars[id].is_valid()
+        }
+    }
 
     impl Ast {
         pub open spec fn eval<D: DateEncoding>(self, env: Environment) -> bool {
@@ -51,6 +63,7 @@ verus! {
         {
             match self {
                 IntExpr::Literal(n) => n,
+                IntExpr::Var(id) => env.int_vars[id],
                 IntExpr::Year(d) => d.eval::<D>(env).year(),
                 IntExpr::Month(d) => d.eval::<D>(env).month(),
                 IntExpr::Day(d) => d.eval::<D>(env).day(),
@@ -65,6 +78,10 @@ verus! {
             match self {
                 DateExpr::Literal(y, m, d) => {
                     D::from_ymd(y.eval::<D>(env), m.eval::<D>(env), d.eval::<D>(env))
+                },
+                DateExpr::Var(id) => {
+                    let sd = env.date_vars[id];
+                    D::from_ymd(sd.year(), sd.month(), sd.day())
                 },
                 DateExpr::Add(base, period) => {
                     base.eval::<D>(env).add_period(period.to_period())
@@ -88,10 +105,10 @@ verus! {
         }
     }
 
-    // ── Well-formedness (purely syntactic) ─────────────────────────────
+    // ── Well-formedness ────────────────────────────────────────────────
 
     impl DateExpr {
-        pub open spec fn is_wf(self) -> bool
+        pub open spec fn is_wf(self, env: Environment) -> bool
             decreases self,
         {
             match self {
@@ -102,35 +119,37 @@ verus! {
                         _ => false,
                     }
                 },
-                DateExpr::Add(base, _) => base.is_wf(),
+                DateExpr::Var(id) => env.date_var_valid(id),
+                DateExpr::Add(base, _) => base.is_wf(env),
             }
         }
     }
 
     impl IntExpr {
-        pub open spec fn is_wf(self) -> bool
+        pub open spec fn is_wf(self, env: Environment) -> bool
             decreases self,
         {
             match self {
                 IntExpr::Literal(_) => true,
-                IntExpr::Year(d) => d.is_wf(),
-                IntExpr::Month(d) => d.is_wf(),
-                IntExpr::Day(d) => d.is_wf(),
+                IntExpr::Var(id) => env.int_vars.dom().contains(id),
+                IntExpr::Year(d) => d.is_wf(env),
+                IntExpr::Month(d) => d.is_wf(env),
+                IntExpr::Day(d) => d.is_wf(env),
             }
         }
     }
 
     impl BoolExpr {
-        pub open spec fn is_wf(self) -> bool
+        pub open spec fn is_wf(self, env: Environment) -> bool
             decreases self,
         {
             match self {
-                BoolExpr::And(a, b) => a.is_wf() && b.is_wf(),
-                BoolExpr::Or(a, b) => a.is_wf() && b.is_wf(),
-                BoolExpr::Not(a) => a.is_wf(),
+                BoolExpr::And(a, b) => a.is_wf(env) && b.is_wf(env),
+                BoolExpr::Or(a, b) => a.is_wf(env) && b.is_wf(env),
+                BoolExpr::Not(a) => a.is_wf(env),
                 BoolExpr::Literal(_) => true,
-                BoolExpr::DateLt(a, b) => a.is_wf() && b.is_wf(),
-                BoolExpr::DateEq(a, b) => a.is_wf() && b.is_wf(),
+                BoolExpr::DateLt(a, b) => a.is_wf(env) && b.is_wf(env),
+                BoolExpr::DateEq(a, b) => a.is_wf(env) && b.is_wf(env),
             }
         }
     }
@@ -138,7 +157,7 @@ verus! {
     // ── EpochDelta equivalence proofs ───────────────────────────────────
 
     pub proof fn lemma_date_wf_implies_valid(e: DateExpr, env: Environment)
-        requires e.is_wf(),
+        requires e.is_wf(env),
         ensures e.eval::<SimpleDate>(env).is_valid(),
         decreases e,
     {
@@ -153,6 +172,7 @@ verus! {
                     _ => {},
                 }
             },
+            DateExpr::Var(id) => {},
             DateExpr::Add(base, period) => {
                 lemma_date_wf_implies_valid(*base, env);
                 theorem_date_add_period_preserves_validity(
@@ -165,7 +185,7 @@ verus! {
 
 
     pub proof fn lemma_date_expr_ed_congruent(e: DateExpr, env: Environment)
-        requires e.is_wf(),
+        requires e.is_wf(env),
         ensures ed_congruent(e.eval::<SimpleDate>(env), e.eval::<EpochDelta>(env)),
         decreases e,
     {
@@ -184,6 +204,10 @@ verus! {
                     _ => {},
                 }
             },
+            DateExpr::Var(id) => {
+                let sd = env.date_vars[id];
+                theorem_epoch_delta_from_ymd_congruent(sd.year(), sd.month(), sd.day());
+            },
             DateExpr::Add(base, period) => {
                 lemma_date_expr_ed_congruent(*base, env);
                 lemma_date_wf_implies_valid(*base, env);
@@ -197,20 +221,17 @@ verus! {
     }
 
     pub proof fn lemma_int_expr_equiv(e: IntExpr, env: Environment)
-        requires e.is_wf(),
+        requires e.is_wf(env),
         ensures e.eval::<SimpleDate>(env) == e.eval::<EpochDelta>(env),
         decreases e,
     {
         match e {
             IntExpr::Literal(_) => {},
+            IntExpr::Var(_) => {},
             IntExpr::Year(d) => {
                 lemma_date_expr_ed_congruent(*d, env);
                 lemma_date_wf_implies_valid(*d, env);
                 let sd = d.eval::<SimpleDate>(env);
-                let ed = d.eval::<EpochDelta>(env);
-                // congruent(sd, ed) means ed == EpochDelta::from_simple_date(sd)
-                // EpochDelta trait year() = ed.to_ymd().year()
-                // round-trip: ed.to_ymd() == sd
                 theorem_epoch_delta_to_ymd_from_simple_date_inverse(sd);
             },
             IntExpr::Month(d) => {
@@ -230,7 +251,7 @@ verus! {
 
 
     pub proof fn lemma_bool_expr_equiv(e: BoolExpr, env: Environment)
-        requires e.is_wf(),
+        requires e.is_wf(env),
         ensures e.eval::<SimpleDate>(env) == e.eval::<EpochDelta>(env),
         decreases e,
     {
@@ -276,7 +297,7 @@ verus! {
 
 
     pub proof fn theorem_ast_epoch_equiv(ast: Ast, env: Environment)
-        requires ast.root.is_wf(),
+        requires ast.root.is_wf(env),
         ensures ast.eval::<SimpleDate>(env) == ast.eval::<EpochDelta>(env),
     {
         lemma_bool_expr_equiv(ast.root, env);
